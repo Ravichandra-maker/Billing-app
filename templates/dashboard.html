@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% set active_page = 'dashboard' %}
+{% block title %}Dashboard - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section style="margin-bottom:48px;">
+  <h2 class="headline-lg">Welcome to <span class="serif-italic">Laxmi Srinivasa</span></h2>
+  <p class="body-md text-secondary" style="margin-top:8px;">Heritage Jewellery Management & Financial Ledger</p>
+</section>
+
+<!-- Live Metal Prices -->
+<div class="price-ticker" id="price-ticker">
+  <div class="price-card">
+    <div class="price-label"><span class="live-dot"></span> Live Gold (24K)</div>
+    <div class="price-value" id="gold-price">₹{{ "{:,.2f}".format(metal_prices.gold.price_per_gram) }}</div>
+    <div class="price-change {{ metal_prices.gold.direction }}" id="gold-change">
+      {% if metal_prices.gold.direction == 'up' %}▲{% else %}▼{% endif %}
+      ₹{{ "{:,.2f}".format(metal_prices.gold.change|abs) }} ({{ metal_prices.gold.change_pct }}%)
+    </div>
+    <div style="font-size:12px;opacity:0.5;margin-top:4px;">per gram</div>
+  </div>
+  <div class="price-card">
+    <div class="price-label"><span class="live-dot"></span> Live Silver</div>
+    <div class="price-value" id="silver-price">₹{{ "{:,.2f}".format(metal_prices.silver.price_per_gram) }}</div>
+    <div class="price-change {{ metal_prices.silver.direction }}" id="silver-change">
+      {% if metal_prices.silver.direction == 'up' %}▲{% else %}▼{% endif %}
+      ₹{{ "{:,.2f}".format(metal_prices.silver.change|abs) }} ({{ metal_prices.silver.change_pct }}%)
+    </div>
+    <div style="font-size:12px;opacity:0.5;margin-top:4px;">per gram</div>
+  </div>
+  <div class="price-card">
+    <div class="price-label"><span class="live-dot"></span> Live Platinum</div>
+    <div class="price-value" id="platinum-price">₹{{ "{:,.2f}".format(metal_prices.platinum.price_per_gram) }}</div>
+    <div class="price-change {{ metal_prices.platinum.direction }}" id="platinum-change">
+      {% if metal_prices.platinum.direction == 'up' %}▲{% else %}▼{% endif %}
+      ₹{{ "{:,.2f}".format(metal_prices.platinum.change|abs) }} ({{ metal_prices.platinum.change_pct }}%)
+    </div>
+    <div style="font-size:12px;opacity:0.5;margin-top:4px;">per gram</div>
+  </div>
+</div>
+
+<!-- Metrics -->
+<div class="metrics-grid">
+  <div class="metric-card">
+    <span class="metric-label">Total Revenue</span>
+    <div class="metric-value">₹{{ "{:,.0f}".format(total_revenue) }}</div>
+    <div class="metric-footer">
+      <span>+12.5%</span>
+      <span class="material-symbols-outlined">trending_up</span>
+    </div>
+  </div>
+  <div class="metric-card inverted">
+    <span class="metric-label">Total Bills</span>
+    <div class="metric-value">{{ total_bills }}</div>
+    <div class="metric-footer">
+      <span>This Month</span>
+      <span class="material-symbols-outlined">history</span>
+    </div>
+  </div>
+  <div class="metric-card">
+    <span class="metric-label">Today's Revenue</span>
+    <div class="metric-value">₹{{ "{:,.0f}".format(today_revenue) }}</div>
+    <div class="metric-footer">
+      <span>{{ today_bills_count }} Bills</span>
+      <span class="material-symbols-outlined">today</span>
+    </div>
+  </div>
+  <div class="metric-card">
+    <span class="metric-label">Pending Bills</span>
+    <div class="metric-value">₹{{ "{:,.0f}".format(pending_amount) }}</div>
+    <div class="metric-footer {% if pending_count > 0 %}text-error{% endif %}">
+      <span>{{ pending_count }} Bill{{ 's' if pending_count != 1 }} Pending</span>
+      <span class="material-symbols-outlined">error</span>
+    </div>
+  </div>
+</div>
+
+<!-- Category + Stock -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:48px;margin-bottom:48px;">
+  <!-- Sales by Category -->
+  <div class="card">
+    <div style="padding:32px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:32px;">
+        <div>
+          <h3 class="headline-md">Sales by Category</h3>
+          <p class="text-secondary" style="margin-top:4px;">Inventory distribution for current quarter.</p>
+        </div>
+        <a href="/bills" class="btn btn-sm">Details</a>
+      </div>
+      <div class="chart-bars" id="category-chart" data-gold="{{ gold_bills }}" data-silver="{{ silver_bills }}"
+        data-diamond="{{ diamond_bills }}" data-other="{{ other_bills }}" data-total="{{ total_bills }}">
+        <div class="chart-bar">
+          <div class="chart-bar-fill" id="bar-gold"></div>
+          <span class="chart-bar-label">Gold</span>
+        </div>
+        <div class="chart-bar">
+          <div class="chart-bar-fill" id="bar-silver"></div>
+          <span class="chart-bar-label">Silver</span>
+        </div>
+        <div class="chart-bar">
+          <div class="chart-bar-fill" id="bar-diamond"></div>
+          <span class="chart-bar-label">Diamond</span>
+        </div>
+        <div class="chart-bar">
+          <div class="chart-bar-fill" id="bar-other"></div>
+          <span class="chart-bar-label">Others</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Alerts -->
+  <div class="card">
+    <div style="padding:32px;">
+      <h3 class="headline-md" style="margin-bottom:32px;">Stock Alerts</h3>
+      <ul class="stock-list">
+        <li class="stock-item">
+          <span>Low Stock Items</span>
+          <span class="stock-item-value">{{ low_stock_count }}</span>
+        </li>
+        <li class="stock-item">
+          <span>Out of Stock</span>
+          <span class="stock-item-value danger">{{ out_of_stock_count }}</span>
+        </li>
+        <li class="stock-item">
+          <span>Total Inventory</span>
+          <span class="stock-item-value">{{ total_inv_count }}</span>
+        </li>
+      </ul>
+      <a href="/inventory" class="label"
+        style="display:inline-block;margin-top:24px;border-bottom:1px solid var(--primary);padding-bottom:2px;">Manage
+        Stock →</a>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Bills Ledger -->
+<div class="card">
+  <div style="padding:32px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
+      <h3 class="headline-md">Recent Bills Ledger</h3>
+      <a href="/bills" class="btn btn-primary">View Full Archive</a>
+    </div>
+    {% if bills %}
+    <div style="overflow-x:auto;">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th>Bill No.</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Item</th>
+            <th>Weight</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th style="text-align:right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bills[:10] %}
+          <tr>
+            <td class="font-bold">{{ b.bill_number or ('LSJ-' ~ b.id) }}</td>
+            <td>{{ b.date }}<br><span style="font-size:11px;opacity:0.5;text-transform:uppercase;">{{ b.day_name
+                }}</span></td>
+            <td>{{ b.customer_name }}<br><span style="font-size:11px;opacity:0.5;">{{ b.phone }}</span></td>
+            <td><span class="tag">{{ b.item_type|upper }}</span></td>
+            <td>{{ b.grams }}g</td>
+            <td class="font-bold">₹{{ "{:,.2f}".format(b.total) }}</td>
+            <td>
+              <span
+                class="tag {% if b.status == 'Paid' %}tag-filled{% elif b.status == 'Pending' %}tag-error{% endif %}">
+                {{ b.status|upper }}
+              </span>
+            </td>
+            <td style="text-align:right;"><a href="/bill/{{ b.id }}" class="btn btn-sm">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <span class="material-symbols-outlined">receipt_long</span>
+      <h3>No Bills Yet</h3>
+      <p>Start by creating your first invoice</p>
+      <a href="/new-bill" class="btn btn-primary" style="margin-top:16px;">Create First Bill</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Set chart bar heights from data attributes
+  (function () {
+    var c = document.getElementById('category-chart');
+    if (!c) return;
+    var t = parseInt(c.dataset.total) || 1;
+    var bars = { gold: 1, silver: 0.4, diamond: 0.2, other: 0.1 };
+    Object.keys(bars).forEach(function (k) {
+      var el = document.getElementById('bar-' + k);
+      if (el) {
+        var pct = Math.max((parseInt(c.dataset[k]) || 0) / t * 100, 4);
+        el.style.height = pct + '%';
+        el.style.minHeight = '8px';
+        el.style.opacity = bars[k];
+      }
+    });
+  })();
+
+  // Auto-refresh metal prices every 5 minutes
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/metal-prices');
+      const prices = await res.json();
+      ['gold', 'silver', 'platinum'].forEach(m => {
+        const p = prices[m];
+        if (!p) return;
+        const el = document.getElementById(m + '-price');
+        const ch = document.getElementById(m + '-change');
+        if (el) el.textContent = '₹' + p.price_per_gram.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        if (ch) {
+          ch.className = 'price-change ' + p.direction;
+          ch.innerHTML = (p.direction === 'up' ? '▲' : '▼') + ' ₹' + Math.abs(p.change).toFixed(2) + ' (' + p.change_pct + '%)';
+        }
+      });
+    } catch (e) { }
+  }, 300000);
+</script>
+{% endblock %}

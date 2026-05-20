@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% set active_page = 'inventory' %}
+{% block title %}{{ 'Edit' if item else 'Add' }} Inventory Item - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}{{ 'Edit' if item else 'Add' }} Item{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;">
+  <div>
+    <h2 class="headline-lg">{{ 'Edit' if item else 'Add' }} <span class="serif-italic">Inventory Item</span></h2>
+    <p class="text-secondary italic" style="margin-top:8px;">Manage your precious inventory.</p>
+  </div>
+  <a href="/inventory" class="btn">← Back to Inventory</a>
+</div>
+
+<form method="POST">
+  <div class="bill-layout">
+    <div class="bill-sections">
+      <!-- Item Information -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <h3 class="section-title">Item Information</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Item Code <span class="required">*</span></label>
+            <input type="text" name="item_code" class="form-control" placeholder="Generating code..." required
+              id="input-item-code" value="{{ item.item_code if item else '' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Item Name <span class="required">*</span></label>
+            <input type="text" name="item_name" class="form-control" placeholder="e.g. Gold Diamond Ring" required
+              value="{{ item.item_name if item else '' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Item Type <span class="required">*</span></label>
+            <select name="item_type" class="form-control" id="input-item-type">
+              <option value="Gold" {{ 'selected' if item and item.item_type=='Gold' }}>Gold</option>
+              <option value="Silver" {{ 'selected' if item and item.item_type=='Silver' }}>Silver</option>
+              <option value="Diamond" {{ 'selected' if item and item.item_type=='Diamond' }}>Diamond</option>
+              <option value="Platinum" {{ 'selected' if item and item.item_type=='Platinum' }}>Platinum</option>
+              <option value="Readymade" {{ 'selected' if item and item.item_type=='Readymade' }}>Readymade</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Purity</label>
+            <input type="text" name="purity" class="form-control" placeholder="e.g. 22K, 925"
+              value="{{ item.purity if item else '' }}">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control"
+              placeholder="Detailed description...">{{ item.description if item else '' }}</textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pricing & Weight -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">payments</span>
+            <h3 class="section-title">Default Pricing & Weight</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Gross Weight (g)</label>
+            <input type="number" step="0.001" name="gross_weight" class="form-control" id="inv-gross"
+              value="{{ item.gross_weight if item else '0' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Stone Weight (g)</label>
+            <input type="number" step="0.001" name="stone_weight" class="form-control" id="inv-stone-w"
+              value="{{ item.stone_weight if item else '0' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Net Weight (g)</label>
+            <input type="number" step="0.001" name="net_weight" class="form-control form-readonly" id="inv-net"
+              value="{{ item.net_weight if item else '0' }}" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Making Charge Type</label>
+            <select name="making_charge_type" class="form-control">
+              <option value="per_gram" {{ 'selected' if item and item.making_charge_type=='per_gram' }}>Per Gram (₹/g)
+              </option>
+              <option value="fixed" {{ 'selected' if item and item.making_charge_type=='fixed' }}>Fixed Amount (₹)
+              </option>
+              <option value="percentage" {{ 'selected' if item and item.making_charge_type=='percentage' }}>Percentage
+                (%)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Making Charge</label>
+            <input type="number" step="0.01" name="making_charge" class="form-control"
+              value="{{ item.making_charge if item else '0' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wastage (%)</label>
+            <input type="number" step="0.01" name="wastage_percent" class="form-control"
+              value="{{ item.wastage_percent if item else '0' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Stone Charge (₹)</label>
+            <input type="number" step="0.01" name="stone_charge" class="form-control"
+              value="{{ item.stone_charge if item else '0' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hallmark Charge (₹)</label>
+            <input type="number" step="0.01" name="hallmark_charge" class="form-control"
+              value="{{ item.hallmark_charge if item else '0' }}">
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Stock Status Sidebar -->
+    <div class="calc-panel">
+      <h3>Stock Status <span class="material-symbols-outlined">inventory</span></h3>
+      <div class="form-group" style="margin-bottom:24px;">
+        <label class="form-label">Quantity in Stock <span class="required">*</span></label>
+        <input type="number" name="quantity" class="form-control font-bold" style="font-size:32px;text-align:center;"
+          required value="{{ item.quantity if item else '1' }}">
+      </div>
+      <div class="form-group" style="margin-bottom:24px;">
+        <label class="form-label">Low Stock Alert Level</label>
+        <input type="number" name="low_stock_alert" class="form-control"
+          value="{{ item.low_stock_alert if item else '2' }}">
+        <span style="font-size:11px;opacity:0.5;margin-top:4px;display:block;">Alert when stock falls below this.</span>
+      </div>
+      <div style="border-top:1px solid var(--primary);padding-top:24px;margin-top:24px;">
+        <button type="submit" class="btn btn-primary btn-full">
+          <span class="material-symbols-outlined">save</span>
+          {{ 'Update Item' if item else 'Save Item' }}
+        </button>
+      </div>
+      <div class="calc-footer">Laxmi Srinivasa Jewellery</div>
+    </div>
+  </div>
+</form>
+
+<script>
+  const g = document.getElementById('inv-gross'), s = document.getElementById('inv-stone-w'), n = document.getElementById('inv-net');
+  function updateNet() { n.value = ((parseFloat(g.value) || 0) - (parseFloat(s.value) || 0)).toFixed(3); }
+  g.addEventListener('input', updateNet);
+  s.addEventListener('input', updateNet);
+
+  const isEdit = {{ 'true' if item else 'false' }};
+  if (!isEdit) {
+    const typeSelect = document.getElementById('input-item-type');
+    const codeInput = document.getElementById('input-item-code');
+    
+    async function fetchNextCode() {
+      try {
+        const type = typeSelect.value;
+        const res = await fetch(`/api/inventory/next-code?item_type=${type}`);
+        const data = await res.json();
+        if (data && data.item_code) {
+          codeInput.value = data.item_code;
+        }
+      } catch (err) {
+        console.error("Error fetching next item code:", err);
+      }
+    }
+    
+    // Fetch initial code on load
+    fetchNextCode();
+    
+    // Fetch new code when type changes
+    typeSelect.addEventListener('change', fetchNextCode);
+  }
+</script>
+{% endblock %}

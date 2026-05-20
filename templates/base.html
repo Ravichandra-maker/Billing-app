@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Laxmi Srinivasa Jewellery{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="/static/logo.png" />
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h1>Laxmi Srinivasa</h1>
+      <p>Billing & Inventory</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="/inventory" class="nav-item {% if active_page == 'inventory' %}active{% endif %}">
+        <span class="material-symbols-outlined">inventory_2</span>
+        <span>Inventory</span>
+      </a>
+      <a href="/new-bill" class="nav-item {% if active_page == 'new_bill' %}active{% endif %}">
+        <span class="material-symbols-outlined">receipt_long</span>
+        <span>Create Bill</span>
+      </a>
+      <a href="/bills" class="nav-item {% if active_page == 'all_bills' %}active{% endif %}">
+        <span class="material-symbols-outlined">analytics</span>
+        <span>Reports</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/new-bill" class="sidebar-cta">New Invoice</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <h2 class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</h2>
+      <div class="topbar-actions">
+        <img src="/static/logo.png" class="topbar-logo" alt="Logo">
+      </div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+      <div class="flash-msg flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Page Content -->
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

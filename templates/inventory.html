@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% set active_page = 'inventory' %}
+{% block title %}Inventory - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Inventory{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section
+  style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--primary);padding-bottom:32px;margin-bottom:48px;">
+  <div>
+    <span class="label text-secondary" style="display:block;margin-bottom:8px;">Central Ledger</span>
+    <h2 class="headline-lg">Inventory Management</h2>
+  </div>
+  <div style="display:flex;gap:16px;">
+    {% if show_all %}
+    <a href="/inventory" class="btn">Show In Stock Only</a>
+    {% else %}
+    <a href="/inventory?all=1" class="btn">Show All Items</a>
+    {% endif %}
+    <a href="/inventory/add" class="btn btn-primary">
+      <span class="material-symbols-outlined">add</span> Add New Item
+    </a>
+  </div>
+</section>
+
+<!-- Inventory Table -->
+<div style="border:1px solid var(--primary);overflow-x:auto;">
+  <table class="ledger-table">
+    <thead>
+      <tr style="background:var(--surface-container-low);">
+        <th>Item Code</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Purity</th>
+        <th>Weight (g)</th>
+        <th>Stock Level</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if items %}
+      {% for item in items %}
+      <tr>
+        <td class="font-bold">{{ item.item_code }}</td>
+        <td class="font-bold italic">{{ item.item_name }}</td>
+        <td><span class="tag">{{ item.item_type|upper }}</span></td>
+        <td>{{ item.purity or '-' }}</td>
+        <td>{{ "%.3f"|format(item.net_weight) }}</td>
+        <td>
+          {% if item.quantity <= 0 %} <span class="tag tag-filled" style="font-size:10px;">OUT OF STOCK</span>
+            {% elif item.quantity <= item.low_stock_alert %} <span
+              style="display:flex;align-items:center;gap:6px;color:var(--error);">
+              <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+              {{ item.quantity }} Units
+              </span>
+              {% else %}
+              <span style="display:flex;align-items:center;gap:6px;">
+                <span style="width:6px;height:6px;background:var(--primary);display:inline-block;"></span>
+                {{ item.quantity }} Units
+              </span>
+              {% endif %}
+        </td>
+        <td style="text-align:right;">
+          <a href="/inventory/edit/{{ item.id }}" class="btn btn-sm">Edit</a>
+          <form method="POST" action="/inventory/delete/{{ item.id }}" style="display:inline;"
+            onsubmit="return confirm('Delete this item?');">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% else %}
+      <tr>
+        <td colspan="7">
+          <div class="empty-state">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <h3>No Inventory Items</h3>
+            <p>Add your first item to get started</p>
+            <a href="/inventory/add" class="btn btn-primary" style="margin-top:16px;">Add Item</a>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Inventory Insights -->
+{% if items %}
+<section style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:48px;">
+  <div class="card">
+    <div style="padding:32px;">
+      <h3 class="headline-md" style="margin-bottom:16px;">Inventory Insights</h3>
+      <p class="text-secondary">Current stock overview with real-time tracking.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:32px;">
+        <div style="border-left:2px solid var(--primary);padding-left:16px;">
+          <span class="label text-secondary" style="display:block;margin-bottom:8px;">SKU Count</span>
+          <span class="headline-md">{{ items|length }}</span>
+        </div>
+        <div style="border-left:2px solid var(--primary);padding-left:16px;">
+          <span class="label text-secondary" style="display:block;margin-bottom:8px;">Low Stock</span>
+          <span class="headline-md text-error">{{ items|selectattr('quantity', 'le', 2)|list|length }}</span>
+        </div>
+        <div style="border-left:2px solid var(--primary);padding-left:16px;">
+          <span class="label text-secondary" style="display:block;margin-bottom:8px;">Out of Stock</span>
+          <span class="headline-md text-error">{{ items|selectattr('quantity', 'le', 0)|list|length }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card"
+    style="background:var(--primary);color:var(--on-primary);display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;">
+    <div>
+      <p class="italic headline-md" style="margin-bottom:16px;">"True value is measured in the precision of the cut and
+        the purity of the metal."</p>
+      <p class="label" style="opacity:0.6;">— LSJ Quality Promise</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

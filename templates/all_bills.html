@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% set active_page = 'all_bills' %}
+{% block title %}All Bills - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Reports{% endblock %}
+
+{% block content %}
+<section style="margin-bottom:48px;">
+  <h2 class="headline-lg" style="text-transform:uppercase;letter-spacing:-0.02em;">All Generated Bills</h2>
+  <p class="text-secondary italic" style="margin-top:8px;">Laxmi Srinivasa Jewellery Archives — Since 1995</p>
+</section>
+
+<!-- Search & Filters -->
+<form method="GET" action="/bills">
+  <div class="filter-bar">
+    <div class="form-group">
+      <label class="form-label">Search Ledger</label>
+      <input type="text" name="search" class="form-control" placeholder="Search by Bill No, Customer Name or Phone..."
+        value="{{ search }}" id="input-search">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Item Type</label>
+      <select name="item_type" class="form-control" id="filter-item-type">
+        <option value="">All Types</option>
+        <option value="Gold" {% if item_filter=='Gold' %}selected{% endif %}>Gold</option>
+        <option value="Silver" {% if item_filter=='Silver' %}selected{% endif %}>Silver</option>
+        <option value="Diamond" {% if item_filter=='Diamond' %}selected{% endif %}>Diamond</option>
+        <option value="Platinum" {% if item_filter=='Platinum' %}selected{% endif %}>Platinum</option>
+        <option value="Readymade" {% if item_filter=='Readymade' %}selected{% endif %}>Readymade</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-control" id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="Paid" {% if status_filter=='Paid' %}selected{% endif %}>Paid</option>
+        <option value="Pending" {% if status_filter=='Pending' %}selected{% endif %}>Pending</option>
+        <option value="Partial" {% if status_filter=='Partial' %}selected{% endif %}>Partial</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <button type="submit" class="btn" id="btn-filter">
+        <span class="material-symbols-outlined">search</span> Search
+      </button>
+      {% if search or item_filter or status_filter %}
+      <a href="/bills" class="btn btn-sm">Clear</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<!-- Bills Table -->
+<div class="card">
+  <div style="padding:32px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h3 class="headline-md">{{ bills|length }} Bill{{ 's' if bills|length != 1 }} Found</h3>
+      <a href="/new-bill" class="btn btn-primary">
+        <span class="material-symbols-outlined">add</span> New Invoice
+      </a>
+    </div>
+
+    {% if bills %}
+    <div style="overflow-x:auto;">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th>Bill No.</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Type</th>
+            <th>Item</th>
+            <th>Weight</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bills %}
+          <tr>
+            <td class="font-bold">{{ b.bill_number or ('LSJ-' ~ b.id) }}</td>
+            <td>{{ b.date }}<br><span style="font-size:11px;opacity:0.5;text-transform:uppercase;">{{ b.day_name
+                }}</span></td>
+            <td>
+              <span class="font-bold">{{ b.customer_name }}</span><br>
+              <span style="font-size:11px;opacity:0.5;">{{ b.phone }}</span>
+            </td>
+            <td><span class="tag">{{ b.item_type|upper }}</span></td>
+            <td>{{ b.item_name or '-' }}</td>
+            <td>{{ b.grams }}g</td>
+            <td class="font-bold">₹{{ "{:,.2f}".format(b.total) }}</td>
+            <td>
+              <span
+                class="tag {% if b.status == 'Paid' %}tag-filled{% elif b.status == 'Pending' %}tag-error{% elif b.status == 'Partial' %}tag-warning{% endif %}">
+                {{ b.status|upper }}
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <a href="/bill/{{ b.id }}" class="btn btn-sm">View</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <span class="material-symbols-outlined">search</span>
+      <h3>No Bills Found</h3>
+      <p>{% if search or item_filter or status_filter %}Try adjusting your search filters{% else %}Create your first
+        bill to get started{% endif %}</p>
+      <a href="/new-bill" class="btn btn-primary" style="margin-top:16px;">Create New Bill</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Footer Info -->
+<div
+  style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--primary);">
+  <span class="italic text-secondary">Showing {{ bills|length }} total bills.</span>
+</div>
+{% endblock %}

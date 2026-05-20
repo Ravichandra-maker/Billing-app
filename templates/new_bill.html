@@ -1,0 +1,536 @@
+{% extends "base.html" %}
+{% set active_page = 'new_bill' %}
+{% block title %}Create New Bill - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Create Bill{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;">
+  <div>
+    <h2 class="headline-lg">Create New Bill</h2>
+    <p class="text-secondary italic" style="margin-top:8px;">Drafting invoice for precious metals and stones.</p>
+  </div>
+  <a href="/" class="btn">← Back to Dashboard</a>
+</div>
+
+<form method="POST" action="/create-bill" id="billForm">
+  <div class="bill-layout">
+    <!-- Left Column -->
+    <div class="bill-sections">
+
+      <!-- Customer Details -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">person</span>
+            <h3 class="section-title">Customer Details</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Bill Number</label>
+            <input type="text" name="bill_number" class="form-control form-readonly" value="{{ bill_number }}" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="text" class="form-control form-readonly" value="{{ current_date }} ({{ current_day }})" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Customer Name <span class="required">*</span></label>
+            <input type="text" name="customer_name" class="form-control" placeholder="Full name of the client" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number <span class="required">*</span></label>
+            <input type="text" name="phone" class="form-control" placeholder="10-digit number" required maxlength="10" pattern="\d{10}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Address</label>
+            <textarea name="address" class="form-control" placeholder="Complete address of the customer"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Items Section -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <h3 class="section-title">Bill Items</h3>
+          </div>
+        </div>
+        
+        <!-- Inventory Search -->
+        <div class="form-group" style="margin-bottom:24px;position:relative;">
+          <label class="form-label">Search from Inventory (Optional)</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="inventory-search" name="item_code" class="form-control"
+              placeholder="Search by Item Code or Name..." autocomplete="off" style="font-style:italic;">
+            <button type="button" class="btn btn-sm" id="btn-clear-search" style="display:none;">Clear</button>
+          </div>
+          <div id="search-results" class="search-dropdown"></div>
+        </div>
+        <div style="border-bottom:1px dashed rgba(0,0,0,0.15);margin-bottom:24px;"></div>
+        
+        <div id="items-container">
+          <!-- Items will be dynamically added here -->
+        </div>
+
+        <button type="button" class="btn btn-outline" style="margin-top: 16px; width: 100%; border: 1.5px dashed #c5a96e; background: #faf7f2; color: #8b6914;" onclick="addItemRow()">
+          <span class="material-symbols-outlined">add</span> Add Another Item
+        </button>
+      </section>
+
+      <!-- Old Item Exchange -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">swap_horiz</span>
+            <h3 class="section-title">Old Item Exchange</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Old Item Type</label>
+            <select name="old_item_type" class="form-control" id="input-old-item-type">
+              <option value="">-- None --</option>
+              <option value="Gold">Gold</option>
+              <option value="Silver">Silver</option>
+              <option value="Platinum">Platinum</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Old Item Name</label>
+            <input type="text" name="old_item_name" class="form-control" placeholder="e.g. Old Chain">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Old Item Purity</label>
+            <input type="text" name="old_item_purity" class="form-control" placeholder="e.g. 22K">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Weight (g)</label>
+            <input type="number" step="0.001" name="old_item_grams" class="form-control calc-input" placeholder="0" value="0" id="input-old-item-grams">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rate (₹/g)</label>
+            <input type="number" step="0.01" name="old_item_rate" class="form-control calc-input" placeholder="0" value="0" id="input-old-item-rate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Value (₹)</label>
+            <input type="text" class="form-control form-readonly text-success font-bold" id="input-old-item-value" readonly value="₹0.00">
+          </div>
+        </div>
+      </section>
+
+      <!-- Payment -->
+      <section>
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="material-symbols-outlined">credit_card</span>
+            <h3 class="section-title">Payment</h3>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Payment Mode</label>
+            <select name="payment_mode" class="form-control">
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="UPI">UPI</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Credit">Credit</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Global Discount (₹)</label>
+            <input type="number" step="0.01" name="discount" class="form-control calc-input" placeholder="0" value="0" id="input-discount">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount Paid (₹)</label>
+            <input type="number" step="0.01" name="amount_paid" class="form-control" placeholder="Leave empty for full payment" value="0">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" placeholder="Any additional notes..."></textarea>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bill Summary Sidebar -->
+    <div class="calc-panel">
+      <h3>Bill Summary <span class="material-symbols-outlined">diamond</span></h3>
+      <div class="calc-row"><span class="label-text">Total Net Weight</span><span class="value-text" id="calc-net-weight">0.000 g</span></div>
+      <div class="calc-row"><span class="label-text">Metal Value</span><span class="value-text" id="calc-metal-value">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">Making Charges</span><span class="value-text" id="calc-making">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">Wastage Charges</span><span class="value-text" id="calc-wastage">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">Stone Charge</span><span class="value-text" id="calc-stone">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">Hallmark</span><span class="value-text" id="calc-hallmark">₹0.00</span></div>
+      <div class="calc-divider"></div>
+      <div class="calc-row"><span class="label-text">Subtotal</span><span class="value-text" id="calc-subtotal">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">CGST (1.5%)</span><span class="value-text" id="calc-cgst">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text">SGST (1.5%)</span><span class="value-text" id="calc-sgst">₹0.00</span></div>
+      <div class="calc-row"><span class="label-text italic text-error">Discount</span><span class="value-text text-error" id="calc-discount">-₹0.00</span></div>
+      <div class="calc-row"><span class="label-text italic text-error">Old Item Exchange</span><span class="value-text text-error" id="calc-old-gold">-₹0.00</span></div>
+      <div class="calc-total">
+        <span class="label-text">Grand Total</span>
+        <span class="value-text" id="calc-total">₹0.00</span>
+      </div>
+      <div style="margin-top:32px;">
+        <button type="submit" class="btn btn-primary btn-full" id="btn-submit-bill">Generate & Print Invoice</button>
+      </div>
+      <div class="calc-footer">Laxmi Srinivasa Jewellery • Since 1995</div>
+    </div>
+  </div>
+</form>
+
+<!-- Template for an Item Row -->
+<template id="item-row-template">
+  <div class="item-row" style="background:#fff; padding: 20px; border: 1px solid #e5d5b7; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position:relative;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+      <h4 style="margin:0; color:#8b6914; font-size:15px; font-weight:600;" class="item-title">Item 1</h4>
+      <button type="button" class="btn btn-sm btn-danger btn-remove-item" onclick="removeItem(this)">
+        <span class="material-symbols-outlined" style="font-size:16px;">delete</span> Remove
+      </button>
+    </div>
+    
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Item Type <span class="required">*</span></label>
+        <select name="item_type[]" class="form-control input-item-type" onchange="updatePurityOptions(this); applyLiveRateToRow(this.closest('.item-row')); calculateBill();">
+          <option value="Gold">Gold</option>
+          <option value="Silver">Silver</option>
+          <option value="Diamond">Diamond</option>
+          <option value="Platinum">Platinum</option>
+          <option value="Readymade">Readymade</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Purity</label>
+        <select name="purity[]" class="form-control input-purity" onchange="applyLiveRateToRow(this.closest('.item-row')); calculateBill();">
+          <option value="22K">22K (916)</option>
+          <option value="24K">24K (999)</option>
+          <option value="18K">18K (750)</option>
+          <option value="14K">14K (585)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Item Name</label>
+        <input type="hidden" name="inventory_item_id[]" class="input-inventory-id" value="">
+        <input type="text" name="item_name[]" class="form-control input-item-name" placeholder="e.g. Necklace">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gross Wt (g) <span class="required">*</span></label>
+        <input type="number" step="0.001" name="gross_weight[]" class="form-control calc-input input-gross-weight" placeholder="0.000" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stone Wt (g)</label>
+        <input type="number" step="0.001" name="stone_weight[]" class="form-control calc-input input-stone-weight" placeholder="0" value="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Net Wt (g)</label>
+        <input type="number" step="0.001" name="grams[]" class="form-control form-readonly input-net-weight" readonly placeholder="Auto-calculated">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Rate/g (₹) <span class="required">*</span></label>
+        <input type="number" step="0.01" name="item_rate[]" class="form-control calc-input font-bold input-rate" placeholder="Rate" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Making Charge Type</label>
+        <select name="making_charge_type[]" class="form-control calc-input input-making-type">
+          <option value="per_gram">Per Gram</option>
+          <option value="fixed">Fixed</option>
+          <option value="percentage">Percentage</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Making Charge</label>
+        <input type="number" step="0.01" name="making_charge[]" class="form-control calc-input input-making" placeholder="0" value="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Wastage (%)</label>
+        <input type="number" step="0.01" name="wastage_percent[]" class="form-control calc-input input-wastage" placeholder="0" value="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hallmark (₹)</label>
+        <input type="number" step="0.01" name="hallmark_charge[]" class="form-control calc-input input-hallmark" placeholder="0" value="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stone Chg (₹)</label>
+        <input type="number" step="0.01" name="stone_charge[]" class="form-control calc-input input-stone-charge" placeholder="0" value="0">
+      </div>
+    </div>
+    <div style="margin-top:12px;">
+      <button type="button" class="btn btn-sm" onclick="applyLiveRateToRow(this.closest('.item-row')); calculateBill();">⚡ Apply Live Rate</button>
+      <span style="font-size:12px;opacity:0.5;margin-left:8px;" class="rate-source-info"></span>
+      <span style="float:right; font-weight:700; color:#8b6914; font-size:16px;" class="row-subtotal-display">Row Total: ₹0.00</span>
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const livePrices = JSON.parse('{{ metal_prices | tojson | e }}');
+  const purityMultipliers = { 
+    '24K': 1.0, '22K': 0.916, '18K': 0.750, '14K': 0.585,
+    '999': 1.0, '925': 0.925, '900': 0.90,
+    '950': 0.95
+  };
+
+  let itemCount = 0;
+
+  function addItemRow() {
+    const container = document.getElementById('items-container');
+    const template = document.getElementById('item-row-template');
+    const clone = template.content.cloneNode(true);
+    
+    itemCount++;
+    clone.querySelector('.item-title').textContent = 'Item ' + itemCount;
+    
+    const itemRow = clone.querySelector('.item-row');
+    
+    // Attach event listeners to all calc-inputs in the new row
+    itemRow.querySelectorAll('.calc-input').forEach(el => {
+      el.addEventListener('input', calculateBill);
+      el.addEventListener('change', calculateBill);
+    });
+    
+    // Apply live rate immediately for default gold
+    container.appendChild(clone);
+    applyLiveRateToRow(container.lastElementChild);
+    updateRemoveButtons();
+    calculateBill();
+  }
+
+  function removeItem(btn) {
+    const container = document.getElementById('items-container');
+    if (container.children.length > 1) {
+      btn.closest('.item-row').remove();
+      updateRemoveButtons();
+      calculateBill();
+    } else {
+      alert("You must have at least one item in the bill.");
+    }
+  }
+  
+  function updateRemoveButtons() {
+    const rows = document.querySelectorAll('.item-row');
+    let i = 1;
+    rows.forEach(row => {
+      row.querySelector('.item-title').textContent = 'Item ' + i;
+      i++;
+      const removeBtn = row.querySelector('.btn-remove-item');
+      if (rows.length === 1) {
+        removeBtn.style.display = 'none';
+      } else {
+        removeBtn.style.display = 'inline-flex';
+      }
+    });
+  }
+
+  function applyLiveRateToRow(row) {
+    if (!row) return;
+    const type = row.querySelector('.input-item-type').value;
+    const purity = row.querySelector('.input-purity').value;
+    const rateInput = row.querySelector('.input-rate');
+    const info = row.querySelector('.rate-source-info');
+    let rate = 0;
+    
+    if (type === 'Gold') {
+      const mult = purityMultipliers[purity] || 0.916;
+      rate = Math.round(livePrices.gold.price_per_gram * mult * 100) / 100;
+      info.textContent = 'Live 24K: ₹' + livePrices.gold.price_per_gram + '/g × ' + purity;
+    } else if (type === 'Silver') {
+      const mult = purityMultipliers[purity] || 1.0;
+      rate = Math.round(livePrices.silver.price_per_gram * mult * 100) / 100;
+      info.textContent = 'Live 999: ₹' + livePrices.silver.price_per_gram + '/g × ' + purity;
+    } else if (type === 'Platinum') {
+      const mult = purityMultipliers[purity] || 0.95;
+      rate = Math.round(livePrices.platinum.price_per_gram * mult * 100) / 100;
+      info.textContent = 'Live 950: ₹' + livePrices.platinum.price_per_gram + '/g × ' + purity;
+    } else { 
+      info.textContent = 'Enter rate manually'; 
+      return; 
+    }
+    
+    rateInput.value = rate.toFixed(2);
+  }
+
+  function updatePurityOptions(selectEl) {
+    const row = selectEl.closest('.item-row');
+    const type = selectEl.value;
+    const p = row.querySelector('.input-purity');
+    const opts = {
+      Gold: [['22K', '22K (916)'], ['24K', '24K (999)'], ['18K', '18K (750)'], ['14K', '14K (585)']],
+      Silver: [['925', '925 Sterling'], ['900', '900 Silver'], ['999', '999 Pure']],
+      Diamond: [['VVS', 'VVS'], ['VS', 'VS'], ['SI', 'SI']],
+      Platinum: [['950', '950 Platinum'], ['900', '900 Platinum']],
+      Readymade: [['NA', 'Not Applicable']]
+    };
+    p.innerHTML = '';
+    (opts[type] || opts.Gold).forEach(o => { 
+      const op = document.createElement('option'); 
+      op.value = o[0]; 
+      op.textContent = o[1]; 
+      p.appendChild(op); 
+    });
+  }
+
+  function calculateBill() {
+    let tNetWeight = 0, tMetalValue = 0, tMaking = 0, tWastage = 0, tStone = 0, tHallmark = 0, tSubtotal = 0;
+    
+    document.querySelectorAll('.item-row').forEach(row => {
+      const gw = parseFloat(row.querySelector('.input-gross-weight').value) || 0;
+      const sw = parseFloat(row.querySelector('.input-stone-weight').value) || 0;
+      const nw = gw - sw;
+      
+      const nwInput = row.querySelector('.input-net-weight');
+      nwInput.value = nw > 0 ? nw.toFixed(3) : '';
+      
+      const rate = parseFloat(row.querySelector('.input-rate').value) || 0;
+      const making = parseFloat(row.querySelector('.input-making').value) || 0;
+      const makingType = row.querySelector('.input-making-type').value;
+      const wastage = parseFloat(row.querySelector('.input-wastage').value) || 0;
+      const stone = parseFloat(row.querySelector('.input-stone-charge').value) || 0;
+      const hallmark = parseFloat(row.querySelector('.input-hallmark').value) || 0;
+      
+      const w = nw > 0 ? nw : 0;
+      let makingAmt = 0;
+      if (makingType === 'per_gram') makingAmt = w * making;
+      else if (makingType === 'percentage') makingAmt = (making / 100) * rate * w;
+      else makingAmt = making;
+      
+      const metalVal = w * rate;
+      const wastageAmt = (wastage / 100) * rate * w;
+      
+      const rowSubtotal = metalVal + makingAmt + wastageAmt + stone + hallmark;
+      row.querySelector('.row-subtotal-display').textContent = 'Row Total: ₹' + rowSubtotal.toFixed(2);
+      
+      tNetWeight += w;
+      tMetalValue += metalVal;
+      tMaking += makingAmt;
+      tWastage += wastageAmt;
+      tStone += stone;
+      tHallmark += hallmark;
+      tSubtotal += rowSubtotal;
+    });
+
+    const discount = parseFloat(document.getElementById('input-discount').value) || 0;
+    
+    // Exchange
+    const oldG = parseFloat(document.getElementById('input-old-item-grams').value) || 0;
+    const oldR = parseFloat(document.getElementById('input-old-item-rate').value) || 0;
+    const oldV = oldG * oldR;
+    document.getElementById('input-old-item-value').value = '₹' + oldV.toFixed(2);
+
+    const cgst = tSubtotal * 0.015;
+    const sgst = tSubtotal * 0.015;
+    const total = Math.max(tSubtotal + cgst + sgst - discount - oldV, 0);
+
+    document.getElementById('calc-net-weight').textContent = tNetWeight.toFixed(3) + ' g';
+    document.getElementById('calc-metal-value').textContent = '₹' + tMetalValue.toFixed(2);
+    document.getElementById('calc-making').textContent = '₹' + tMaking.toFixed(2);
+    document.getElementById('calc-wastage').textContent = '₹' + tWastage.toFixed(2);
+    document.getElementById('calc-stone').textContent = '₹' + tStone.toFixed(2);
+    document.getElementById('calc-hallmark').textContent = '₹' + tHallmark.toFixed(2);
+    document.getElementById('calc-subtotal').textContent = '₹' + tSubtotal.toFixed(2);
+    document.getElementById('calc-cgst').textContent = '₹' + cgst.toFixed(2);
+    document.getElementById('calc-sgst').textContent = '₹' + sgst.toFixed(2);
+    document.getElementById('calc-discount').textContent = '-₹' + discount.toFixed(2);
+    document.getElementById('calc-old-gold').textContent = '-₹' + oldV.toFixed(2);
+    document.getElementById('calc-total').textContent = '₹' + total.toFixed(2);
+  }
+
+  // Bind old item and discount global inputs
+  document.getElementById('input-discount').addEventListener('input', calculateBill);
+  document.getElementById('input-old-item-grams').addEventListener('input', calculateBill);
+  document.getElementById('input-old-item-rate').addEventListener('input', calculateBill);
+
+  // Initialize with one row on load
+  document.addEventListener("DOMContentLoaded", () => {
+    addItemRow();
+  });
+
+  // Inventory search
+  const sI = document.getElementById('inventory-search');
+  const rD = document.getElementById('search-results');
+  const cB = document.getElementById('btn-clear-search');
+  
+  if (sI) {
+    sI.addEventListener('input', async e => {
+      const q = e.target.value;
+      if (q.length < 2) { rD.style.display = 'none'; cB.style.display = 'none'; return; }
+      cB.style.display = 'inline-flex';
+      try {
+        const r = await fetch('/api/inventory/search?q=' + encodeURIComponent(q)); 
+        const items = await r.json();
+        if (items.length > 0) { 
+          rD.innerHTML = items.map(i => '<div class="search-dropdown-item" onclick="selectItem(' + JSON.stringify(i).replace(/"/g, '&quot;') + ')"><strong>' + i.item_code + ' - ' + i.item_name + '</strong><br><span style="font-size:12px;opacity:0.5;">' + i.item_type + ' | ' + i.purity + ' | ' + i.net_weight + 'g | Stock: ' + i.quantity + '</span></div>').join(''); 
+          rD.style.display = 'block'; 
+        } else { 
+          rD.innerHTML = '<div style="padding:16px;opacity:0.5;">No items found</div>'; 
+          rD.style.display = 'block'; 
+        }
+      } catch (err) { console.error(err); }
+    });
+  }
+
+  function selectItem(item) { 
+    const container = document.getElementById('items-container');
+    let targetRow = container.lastElementChild;
+    
+    if (targetRow) {
+      const nameInput = targetRow.querySelector('.input-item-name').value;
+      const weightInput = targetRow.querySelector('.input-gross-weight').value;
+      
+      if (nameInput || (weightInput && parseFloat(weightInput) > 0)) {
+        addItemRow();
+        targetRow = container.lastElementChild;
+      }
+    } else {
+      addItemRow();
+      targetRow = container.lastElementChild;
+    }
+    
+    // Populate the target row with the item data
+    targetRow.querySelector('.input-item-type').value = item.item_type;
+    updatePurityOptions(targetRow.querySelector('.input-item-type'));
+    targetRow.querySelector('.input-purity').value = item.purity || (item.item_type === 'Gold' ? '22K' : '');
+    targetRow.querySelector('.input-item-name').value = item.item_name;
+    targetRow.querySelector('.input-inventory-id').value = item.id;
+    targetRow.querySelector('.input-gross-weight').value = item.gross_weight;
+    targetRow.querySelector('.input-stone-weight').value = item.stone_weight;
+    targetRow.querySelector('.input-making').value = item.making_charge;
+    targetRow.querySelector('.input-making-type').value = item.making_charge_type;
+    targetRow.querySelector('.input-wastage').value = item.wastage_percent;
+    targetRow.querySelector('.input-stone-charge').value = item.stone_charge;
+    targetRow.querySelector('.input-hallmark').value = item.hallmark_charge;
+    
+    // Apply live rate and calculate bill
+    applyLiveRateToRow(targetRow);
+    calculateBill();
+    
+    // Hide dropdown
+    rD.style.display = 'none'; 
+    sI.value = '';
+    cB.style.display = 'none';
+  }
+  
+  if (cB) {
+    cB.addEventListener('click', () => { 
+      sI.value = ''; 
+      rD.style.display = 'none'; 
+      cB.style.display = 'none'; 
+    });
+  }
+  
+  document.addEventListener('click', e => { 
+    if (sI && e.target !== sI && rD && !rD.contains(e.target)) {
+      rD.style.display = 'none'; 
+    }
+  });
+</script>
+{% endblock %}

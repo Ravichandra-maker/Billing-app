@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+{% set active_page = '' %}
+{% block title %}Invoice {{ bill.bill_number }} - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Invoice{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
+
+  /* Base portrait size constraints: 200mm wide x 150mm tall */
+  .invoice-container {
+    width: 200mm;
+    height: 150mm;
+    min-height: 150mm;
+    max-height: 150mm;
+    padding: 5mm 10mm 4mm 10mm;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1.5px solid #c5a96e; /* Elegant gold border */
+    border-radius: 6px;
+    margin: 0 auto;
+    font-family: 'Montserrat', sans-serif; /* Clean professional body text & numbers */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    position: relative; /* For absolute watermark positioning */
+  }
+
+  .invoice-watermark {
+    position: absolute;
+    top: 52%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-size: 85px;
+    font-weight: 800;
+    color: #000;
+    opacity: 0.035; /* Extremely subtle and faint */
+    letter-spacing: 12px;
+    pointer-events: none;
+    z-index: 0;
+    user-select: none;
+    font-family: 'Cinzel', serif; /* Luxurious watermark text */
+  }
+
+  /* Invoice Header: Logo left, Meta right */
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px double #c5a96e; /* Luxurious double line border */
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+  }
+
+  .invoice-brand {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .invoice-brand img.big-logo {
+    height: 60px; /* Reduced from 75px for more space */
+    width: auto;
+    margin: 0;
+  }
+
+  .invoice-brand h1 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    color: #000;
+    letter-spacing: 0.5px;
+    font-family: 'Cinzel', serif; /* Elegant branding header */
+  }
+
+  .invoice-brand p {
+    font-size: 9.5px;
+    color: #444;
+    margin: 2px 0 0 0;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  .invoice-meta {
+    text-align: right;
+  }
+
+  .tax-invoice-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: #8b6914;
+    background: #faf7f2;
+    border: 1px solid #e5d5b7;
+    padding: 1px 6px;
+    border-radius: 2px;
+    display: inline-block;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .invoice-meta-row {
+    font-size: 10px;
+    color: #111;
+    margin-bottom: 2px;
+    font-weight: 500;
+  }
+
+  .invoice-meta-row strong {
+    color: #8b6914;
+    font-family: 'Cinzel', serif;
+    font-size: 10.5px;
+  }
+
+  /* Full-width Bill To row */
+  .bill-to-row {
+    margin-bottom: 8px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+  }
+
+  .bill-to-row h3 {
+    font-size: 9px;
+    font-weight: 700;
+    color: #8b6914;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 2px 0;
+  }
+
+  .bill-to-row p {
+    font-size: 10.5px;
+    margin: 0;
+    color: #111;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+
+  /* Compact Table with Math Alignment classes */
+  .invoice-table-wrapper {
+    margin-bottom: 8px;
+  }
+
+  .invoice-table-wrapper table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+  }
+
+  .invoice-table-wrapper th {
+    background: #faf7f2;
+    color: #333;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 4px 6px;
+    border: 1.5px solid #c5a96e;
+  }
+
+  .invoice-table-wrapper td {
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    color: #111;
+    font-weight: 500;
+  }
+
+  .tag {
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid #ccc;
+    font-weight: 600;
+    background: #eee;
+    display: inline-block;
+  }
+
+  /* Alignment Utility Classes */
+  .text-left {
+    text-align: left;
+  }
+
+  .text-center {
+    text-align: center;
+  }
+
+  .text-right {
+    text-align: right;
+  }
+
+  .font-bold {
+    font-weight: 700 !important;
+  }
+
+  /* Calculations Grid - level-justified bottom sections */
+  .calculations-section {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 16px;
+    align-items: stretch;
+    flex-grow: 1; /* Maximizes the height to fill portrait card */
+    min-height: 0;
+    margin-bottom: 6px;
+  }
+
+  .calculations-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* Pushes payment info to the bottom! */
+    height: 100%;
+    padding-bottom: 6px; /* Matches vertical alignment with signature box text baseline */
+  }
+
+  .calculations-right {
+    border-left: 1.5px solid #d4af37; /* Solid gold accent divider */
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Totals at top, Signature at bottom */
+    height: 100%;
+  }
+
+  .payment-info {
+    font-size: 9.5px;
+    color: #222;
+    line-height: 1.5;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .status-badge {
+    font-size: 8px;
+    padding: 2px 5px;
+    font-weight: 700;
+    border-radius: 2px;
+    display: inline-block;
+    letter-spacing: 0.02em;
+  }
+  
+  .status-paid {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+  }
+
+  .status-pending {
+    background: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+  }
+
+  .signature-box {
+    text-align: right; /* Aligned right under calculations */
+    width: 140px;
+    align-self: flex-end; /* Right side alignment */
+    margin-bottom: 2px;
+    margin-top: 25px; /* Forces vertical space for the physical signature */
+  }
+
+  .signature-box .sig-line {
+    border-top: 1px solid #000;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .signature-box p {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  /* Totals list */
+  .totals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5px; /* Tighter gap */
+    width: 100%;
+    margin-bottom: 8px; /* Less margin */
+  }
+
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: #222;
+    font-weight: 500;
+  }
+
+  .totals-row.subtotal-row {
+    border-top: 1px solid #ccc;
+    padding-top: 3px;
+    font-weight: 600;
+  }
+
+  .totals-row.grand-total-row {
+    border-top: 1.5px solid #c5a96e;
+    padding: 4px 6px;
+    margin-top: 3px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+    background: #faf7f2;
+    border: 1px solid #c5a96e;
+  }
+
+  .text-success {
+    color: #15803d;
+    font-weight: 600;
+  }
+
+  .text-error {
+    color: #b91c1c;
+    font-weight: 600;
+  }
+
+  .invoice-footer-note {
+    text-align: center;
+    font-size: 9px;
+    color: #555;
+    border-top: 1px solid #eee;
+    padding-top: 4px;
+    margin-top: 4px;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  /* Print Styles */
+  @media print {
+    @page {
+      size: 200mm 150mm; /* Landscape page print size */
+      margin: 0;
+    }
+
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .no-print,
+    .sidebar,
+    .topbar,
+    .flash-container {
+      display: none !important;
+    }
+
+    .main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: transparent !important;
+    }
+
+    .page-content {
+      padding: 0 !important;
+    }
+
+    .invoice-container {
+      border: none !important;
+      box-shadow: none !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      width: 200mm !important;
+      height: 150mm !important;
+      min-height: 150mm !important;
+      max-height: 150mm !important;
+      padding: 8mm 10mm !important;
+      box-sizing: border-box !important;
+    }
+  }
+</style>
+
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
+  <h2 class="headline-lg">Invoice <span class="serif-italic">{{ bill.bill_number or ('LSJ-' ~ bill.id) }}</span></h2>
+  <div style="display:flex;gap:12px;">
+    <a href="/bills" class="btn">← All Bills</a>
+    <button onclick="window.print()" class="btn btn-primary" id="btn-print">
+      <span class="material-symbols-outlined">print</span> Print Invoice
+    </button>
+  </div>
+</div>
+
+<div class="invoice-container">
+  <!-- Invoice Watermark Initials -->
+  <div class="invoice-watermark">LSJ</div>
+
+  <!-- Invoice Header (Logo left, Info right) -->
+  <div class="invoice-header">
+    <div class="invoice-brand">
+      <img src="/static/logo.png" class="big-logo" alt="Logo">
+      <div>
+        <h1>Laxmi Srinivasa Jewellery</h1>
+        <p>Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</p>
+      </div>
+    </div>
+    <div class="invoice-meta">
+      <div class="tax-invoice-badge">TAX INVOICE</div>
+      <div class="invoice-meta-row"><strong>INVOICE:</strong> {{ bill.bill_number or ('LSJ-' ~ bill.id) }}</div>
+      <div class="invoice-meta-row"><strong>DATE:</strong> {{ bill.date }}</div>
+    </div>
+  </div>
+
+  <!-- Full-width customer details row -->
+  <div class="bill-to-row">
+    <h3>BILL TO:</h3>
+    <p>
+      <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %} | Ph: {{ bill.phone }}
+    </p>
+  </div>
+
+  <!-- Compact Table with Math Alignment -->
+  <div class="invoice-table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th class="text-left">Item</th>
+          <th class="text-center">HSN</th>
+          <th class="text-center">Type</th>
+          <th class="text-center">Purity</th>
+          <th class="text-right">Gross Wt</th>
+          <th class="text-right">Stone Wt</th>
+          <th class="text-right">Net Wt</th>
+          <th class="text-right">Rate/g</th>
+          <th class="text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if bill.items %}
+          {% for item in bill.items %}
+          <tr>
+            <td class="text-left">{{ item.item_name or 'Jewellery Item' }}</td>
+            <td class="text-center" style="color: #666; font-weight: 600;">7113</td>
+            <td class="text-center"><span class="tag">{{ item.item_type|upper }}</span></td>
+            <td class="text-center">{{ item.purity or '-' }}</td>
+            <td class="text-right">{{ "%.3f"|format(item.gross_weight or item.grams) }}g</td>
+            <td class="text-right">{{ "%.3f"|format(item.stone_weight or 0) }}g</td>
+            <td class="text-right font-bold">{{ "%.3f"|format(item.net_weight or item.grams) }}g</td>
+            <td class="text-right">₹{{ "{:,.2f}".format(item.item_rate) }}</td>
+            <td class="text-right font-bold">₹{{ "{:,.2f}".format((item.net_weight or item.grams) * item.item_rate) }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td class="text-left">{{ bill.item_name or 'Jewellery Item' }}</td>
+            <td class="text-center" style="color: #666; font-weight: 600;">7113</td>
+            <td class="text-center"><span class="tag">{{ bill.item_type|upper }}</span></td>
+            <td class="text-center">{{ bill.purity or '-' }}</td>
+            <td class="text-right">{{ "%.3f"|format(bill.gross_weight or bill.grams) }}g</td>
+            <td class="text-right">{{ "%.3f"|format(bill.stone_weight or 0) }}g</td>
+            <td class="text-right font-bold">{{ "%.3f"|format(bill.net_weight or bill.grams) }}g</td>
+            <td class="text-right">₹{{ "{:,.2f}".format(bill.item_rate) }}</td>
+            <td class="text-right font-bold">₹{{ "{:,.2f}".format((bill.net_weight or bill.grams) * bill.item_rate) }}</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Level-justified Calculations Section under the table -->
+  <div class="calculations-section">
+    <!-- Left Column: Payment Mode & Status at the bottom -->
+    <div class="calculations-left">
+      <div class="payment-info">
+        <p><strong>Payment Mode:</strong> {{ bill.payment_mode }}</p>
+        <p style="margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+          <strong>Payment Status:</strong> 
+          <span class="status-badge {% if bill.status == 'Paid' %}status-paid{% else %}status-pending{% endif %}">
+            {{ bill.status|upper }}
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Right Column: Totals list on top, Signature at bottom -->
+    <div class="calculations-right">
+      <div class="totals-list">
+        {% set ns = namespace(total_metal=0, total_making=0, total_wastage=0) %}
+        {% if bill.items %}
+          {% for item in bill.items %}
+            {% set item_w = item.net_weight or item.grams %}
+            {% set ns.total_metal = ns.total_metal + (item_w * item.item_rate) %}
+            
+            {% set making_amt = 0 %}
+            {% if (item.making_charge_type or 'per_gram') == 'per_gram' %}
+              {% set making_amt = item_w * item.making_charge %}
+            {% elif item.making_charge_type == 'percentage' %}
+              {% set making_amt = (item.making_charge / 100) * item.item_rate * item_w %}
+            {% else %}
+              {% set making_amt = item.making_charge %}
+            {% endif %}
+            {% set ns.total_making = ns.total_making + making_amt %}
+            
+            {% set ns.total_wastage = ns.total_wastage + ((item.wastage_percent / 100) * item.item_rate * item_w) %}
+          {% endfor %}
+        {% else %}
+          {% set item_w = bill.net_weight or bill.grams %}
+          {% set ns.total_metal = item_w * bill.item_rate %}
+          
+          {% set making_amt = 0 %}
+          {% if (bill.making_charge_type or 'per_gram') == 'per_gram' %}
+            {% set making_amt = item_w * bill.making_charge %}
+          {% elif bill.making_charge_type == 'percentage' %}
+            {% set making_amt = (bill.making_charge / 100) * bill.item_rate * item_w %}
+          {% else %}
+            {% set making_amt = bill.making_charge %}
+          {% endif %}
+          {% set ns.total_making = making_amt %}
+          
+          {% set ns.total_wastage = (bill.wastage_percent / 100) * bill.item_rate * item_w %}
+        {% endif %}
+
+        <div class="totals-row">
+          <span>Total Metal Value</span>
+          <span>₹{{ "{:,.2f}".format(ns.total_metal) }}</span>
+        </div>
+        <div class="totals-row">
+          <span>Total Making Charges</span>
+          <span>₹{{ "{:,.2f}".format(ns.total_making) }}</span>
+        </div>
+        <div class="totals-row">
+          <span>Total Wastage</span>
+          <span>₹{{ "{:,.2f}".format(ns.total_wastage) }}</span>
+        </div>
+        {% if bill.stone_charge %}
+        <div class="totals-row">
+          <span>Stone/Setting Charge</span>
+          <span>₹{{ "{:,.2f}".format(bill.stone_charge) }}</span>
+        </div>
+        {% endif %}
+        {% if bill.hallmark_charge %}
+        <div class="totals-row">
+          <span>Hallmark Charge</span>
+          <span>₹{{ "{:,.2f}".format(bill.hallmark_charge) }}</span>
+        </div>
+        {% endif %}
+        
+        <div class="totals-row subtotal-row">
+          <span>Subtotal</span>
+          <span>₹{{ "{:,.2f}".format(bill.subtotal or bill.total) }}</span>
+        </div>
+        <div class="totals-row">
+          <span>CGST (1.5%)</span>
+          <span>₹{{ "{:,.2f}".format(bill.cgst or 0) }}</span>
+        </div>
+        <div class="totals-row">
+          <span>SGST (1.5%)</span>
+          <span>₹{{ "{:,.2f}".format(bill.sgst or 0) }}</span>
+        </div>
+        
+        {% if bill.discount %}
+        <div class="totals-row text-success">
+          <span>Discount</span>
+          <span>-₹{{ "{:,.2f}".format(bill.discount) }}</span>
+        </div>
+        {% endif %}
+        
+        {% if bill.old_item_value %}
+        <div class="totals-row text-success">
+          <span>Exchange ({{ bill.old_item_type|upper }})</span>
+          <span>-₹{{ "{:,.2f}".format(bill.old_item_value) }}</span>
+        </div>
+        {% endif %}
+        
+        <div class="totals-row grand-total-row">
+          <span>Grand Total</span>
+          <span>₹{{ "{:,.2f}".format(bill.total) }}</span>
+        </div>
+        
+        {% if bill.amount_paid and bill.amount_paid != bill.total %}
+        <div class="totals-row">
+          <span>Amount Paid</span>
+          <span>₹{{ "{:,.2f}".format(bill.amount_paid) }}</span>
+        </div>
+        <div class="totals-row text-error font-bold">
+          <span>Balance Due</span>
+          <span>₹{{ "{:,.2f}".format(bill.balance) }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="signature-box">
+        <div class="sig-line"></div>
+        <p>Authorized Signature</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer note -->
+  <div class="invoice-footer-note">
+    Thank you for choosing Laxmi Srinivasa Jewellery • Prestige • Quality • Integrity
+  </div>
+</div>
+
+<div class="no-print" style="text-align:center;margin-top:24px;">
+  <form method="POST" action="/delete-bill/{{ bill.id }}"
+    onsubmit="return confirm('Are you sure you want to delete this bill?');" style="display:inline;">
+    <button type="submit" class="btn btn-danger" id="btn-delete-bill">
+      <span class="material-symbols-outlined">delete</span> Delete Bill
+    </button>
+  </form>
+</div>
+{% endblock %}
