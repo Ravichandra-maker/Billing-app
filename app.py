@@ -16,12 +16,19 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'lakshmi_srinivasa_jewellery_2026
 
 # Database configuration
 
-DATA_DIR = "/tmp/databases"
-os.makedirs(DATA_DIR, exist_ok=True)
+database_url = os.getenv('DATABASE_URL')
 
-db_path = os.path.join(DATA_DIR, "billing.db")
+if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    DATA_DIR = os.path.join(basedir, "databases")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    db_path = os.path.join(DATA_DIR, "billing.db")
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)

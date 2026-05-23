@@ -5,4 +5,4 @@ reportlab
 python-dotenv
 requests
 gunicorn
-flask_sqlalchemy
+psycopg2-binary
