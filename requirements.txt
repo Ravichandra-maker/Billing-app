@@ -4,3 +4,5 @@ pandas
 reportlab
 python-dotenv
 requests
+gunicorn
+flask_sqlalchemy

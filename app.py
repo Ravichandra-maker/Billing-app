@@ -15,11 +15,15 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'lakshmi_srinivasa_jewellery_2026')
 
 # Database configuration
-basedir = os.path.abspath(os.path.dirname(__file__))
-db_path = os.path.join(basedir, 'databases', 'billing.db')
-os.makedirs(os.path.join(basedir, 'databases'), exist_ok=True)
+
+DATA_DIR = "/tmp/databases"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+db_path = os.path.join(DATA_DIR, "billing.db")
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db.init_app(app)
 
 with app.app_context():
