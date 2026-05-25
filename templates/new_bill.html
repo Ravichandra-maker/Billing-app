@@ -5,7 +5,7 @@
 
 {% block content %}
 <!-- Header -->
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;">
+<div class="responsive-flex-header">
   <div>
     <h2 class="headline-lg">Create New Bill</h2>
     <p class="text-secondary italic" style="margin-top:8px;">Drafting invoice for precious metals and stones.</p>
@@ -261,10 +261,12 @@
         <input type="number" step="0.01" name="stone_charge[]" class="form-control calc-input input-stone-charge" placeholder="0" value="0">
       </div>
     </div>
-    <div style="margin-top:12px;">
-      <button type="button" class="btn btn-sm" onclick="applyLiveRateToRow(this.closest('.item-row')); calculateBill();">⚡ Apply Live Rate</button>
-      <span style="font-size:12px;opacity:0.5;margin-left:8px;" class="rate-source-info"></span>
-      <span style="float:right; font-weight:700; color:#8b6914; font-size:16px;" class="row-subtotal-display">Row Total: ₹0.00</span>
+    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-top:1px dashed #eee; padding-top:12px;">
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+        <button type="button" class="btn btn-sm" onclick="applyLiveRateToRow(this.closest('.item-row')); calculateBill();">⚡ Apply Live Rate</button>
+        <span style="font-size:12px;opacity:0.5;" class="rate-source-info"></span>
+      </div>
+      <span style="font-weight:700; color:#8b6914; font-size:16px;" class="row-subtotal-display">Row Total: ₹0.00</span>
     </div>
   </div>
 </template>

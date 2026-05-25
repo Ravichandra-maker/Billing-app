@@ -14,11 +14,19 @@
 </head>
 
 <body>
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
   <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <h1>Laxmi Srinivasa</h1>
-      <p>Billing & Inventory</p>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1>Laxmi Srinivasa</h1>
+        <p>Billing & Inventory</p>
+      </div>
+      <button class="close-sidebar" id="closeSidebar" aria-label="Close menu">
+        <span class="material-symbols-outlined">close</span>
+      </button>
     </div>
     <nav class="sidebar-nav">
       <a href="/" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
@@ -47,6 +55,9 @@
   <main class="main-content">
     <!-- Top Bar -->
     <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" aria-label="Open menu">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
       <h2 class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</h2>
       <div class="topbar-actions">
         <img src="/static/logo.png" class="topbar-logo" alt="Logo">
@@ -71,6 +82,44 @@
   </main>
 
   {% block scripts %}{% endblock %}
+
+  <!-- Drawer Menu Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const menuToggle = document.getElementById('menuToggle');
+      const closeSidebar = document.getElementById('closeSidebar');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+      if (menuToggle && sidebar && sidebarOverlay) {
+        menuToggle.addEventListener('click', function() {
+          sidebar.classList.add('active');
+          sidebarOverlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        });
+      }
+
+      function closeMenu() {
+        if (sidebar && sidebarOverlay) {
+          sidebar.classList.remove('active');
+          sidebarOverlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      }
+
+      if (closeSidebar) {
+        closeSidebar.addEventListener('click', closeMenu);
+      }
+      if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMenu);
+      }
+
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => {
+        item.addEventListener('click', closeMenu);
+      });
+    });
+  </script>
 </body>
 
 </html>

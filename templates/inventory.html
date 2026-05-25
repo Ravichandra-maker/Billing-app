@@ -5,8 +5,7 @@
 
 {% block content %}
 <!-- Page Header -->
-<section
-  style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--primary);padding-bottom:32px;margin-bottom:48px;">
+<section class="responsive-flex-header">
   <div>
     <span class="label text-secondary" style="display:block;margin-bottom:8px;">Central Ledger</span>
     <h2 class="headline-lg">Inventory Management</h2>
@@ -87,12 +86,12 @@
 
 <!-- Inventory Insights -->
 {% if items %}
-<section style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:48px;">
+<section class="responsive-grid-2-1" style="margin-top:48px;">
   <div class="card">
     <div style="padding:32px;">
       <h3 class="headline-md" style="margin-bottom:16px;">Inventory Insights</h3>
       <p class="text-secondary">Current stock overview with real-time tracking.</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:32px;">
+      <div class="responsive-grid-3" style="margin-top:32px;">
         <div style="border-left:2px solid var(--primary);padding-left:16px;">
           <span class="label text-secondary" style="display:block;margin-bottom:8px;">SKU Count</span>
           <span class="headline-md">{{ items|length }}</span>

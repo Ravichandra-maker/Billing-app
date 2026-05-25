@@ -4,7 +4,7 @@
 {% block topbar_title %}{{ 'Edit' if item else 'Add' }} Item{% endblock %}
 
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;">
+<div class="responsive-flex-header">
   <div>
     <h2 class="headline-lg">{{ 'Edit' if item else 'Add' }} <span class="serif-italic">Inventory Item</span></h2>
     <p class="text-secondary italic" style="margin-top:8px;">Manage your precious inventory.</p>
