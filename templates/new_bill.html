@@ -105,7 +105,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Old Item Purity</label>
-            <input type="text" name="old_item_purity" class="form-control" placeholder="e.g. 22K">
+            <input type="text" name="old_item_purity" class="form-control" placeholder="e.g. 22K" id="input-old-item-purity">
           </div>
           <div class="form-group">
             <label class="form-label">Weight (g)</label>
@@ -282,6 +282,33 @@
     '950': 0.95
   };
 
+  function getPurityMultiplier(purityStr) {
+    if (!purityStr) return 1.0;
+    let clean = purityStr.trim().toUpperCase().replace(/\s+/g, '').replace(/KT$/, 'K').replace(/%$/, '');
+    if (purityMultipliers[clean] !== undefined) {
+      return purityMultipliers[clean];
+    }
+    if (clean.endsWith('K')) {
+      const num = parseFloat(clean.slice(0, -1));
+      if (!isNaN(num) && num > 0 && num <= 24) {
+        return Math.round((num / 24) * 1000000) / 1000000;
+      }
+    }
+    const num = parseFloat(clean);
+    if (!isNaN(num) && num > 0) {
+      if (num <= 1.0) {
+        return num;
+      } else if (num <= 24) {
+        return Math.round((num / 24) * 1000000) / 1000000;
+      } else if (num <= 100) {
+        return Math.round((num / 100) * 1000000) / 1000000;
+      } else if (num <= 1000) {
+        return Math.round((num / 1000) * 1000000) / 1000000;
+      }
+    }
+    return 1.0;
+  }
+
   let itemCount = 0;
 
   function addItemRow() {
@@ -425,7 +452,9 @@
     // Exchange
     const oldG = parseFloat(document.getElementById('input-old-item-grams').value) || 0;
     const oldR = parseFloat(document.getElementById('input-old-item-rate').value) || 0;
-    const oldV = oldG * oldR;
+    const oldPurity = (document.getElementById('input-old-item-purity').value || '').trim();
+    const oldMult = getPurityMultiplier(oldPurity);
+    const oldV = oldG * oldR * oldMult;
     document.getElementById('input-old-item-value').value = '₹' + oldV.toFixed(2);
 
     const cgst = tSubtotal * 0.015;
@@ -450,6 +479,7 @@
   document.getElementById('input-discount').addEventListener('input', calculateBill);
   document.getElementById('input-old-item-grams').addEventListener('input', calculateBill);
   document.getElementById('input-old-item-rate').addEventListener('input', calculateBill);
+  document.getElementById('input-old-item-purity').addEventListener('input', calculateBill);
 
   // Initialize with one row on load
   document.addEventListener("DOMContentLoaded", () => {

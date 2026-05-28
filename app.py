@@ -36,6 +36,49 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+# ===== PURITY MULTIPLIERS FOR CALCULATIONS =====
+PURITY_MULTIPLIERS = {
+    '24K': 1.0, '22K': 0.916, '18K': 0.750, '14K': 0.585,
+    '999': 1.0, '925': 0.925, '900': 0.90,
+    '950': 0.95
+}
+
+def get_purity_multiplier(purity_str):
+    if not purity_str:
+        return 1.0
+        
+    # Normalize purity string
+    clean = str(purity_str).strip().upper().replace(' ', '').replace('KT', 'K').rstrip('%')
+    
+    # Check predefined multipliers first
+    if clean in PURITY_MULTIPLIERS:
+        return PURITY_MULTIPLIERS[clean]
+        
+    # Fallback parsing logic
+    if clean.endswith('K'):
+        try:
+            num = float(clean[:-1])
+            if 0 < num <= 24:
+                return round(num / 24.0, 6)
+        except ValueError:
+            pass
+            
+    try:
+        num = float(clean)
+        if num > 0:
+            if num <= 1.0:
+                return num
+            elif num <= 24:
+                return round(num / 24.0, 6)
+            elif num <= 100:
+                return round(num / 100.0, 6)
+            elif num <= 1000:
+                return round(num / 1000.0, 6)
+    except ValueError:
+        pass
+        
+    return 1.0
+
 # ===== LIVE METAL PRICES =====
 GOLD_API_KEY = os.getenv('GOLD_API_KEY', 'goldapi-40e507f3c996c0a795b777471aba53b8-io')
 if GOLD_API_KEY and not GOLD_API_KEY.startswith('goldapi-'):
@@ -319,9 +362,11 @@ def create_bill():
             grams_arr = [float(x or 0) for x in form.getlist('grams[]')]
             
         discount = float(form.get('discount', 0) or 0)
+        old_item_purity = form.get('old_item_purity', '')
         old_item_grams = float(form.get('old_item_grams', 0) or 0)
         old_item_rate = float(form.get('old_item_rate', 0) or 0)
-        old_item_value = round(old_item_grams * old_item_rate, 2)
+        old_mult = get_purity_multiplier(old_item_purity)
+        old_item_value = round(old_item_grams * old_item_rate * old_mult, 2)
         amount_paid = float(form.get('amount_paid', 0) or 0)
 
         total_subtotal = 0
@@ -532,9 +577,11 @@ def calculate():
     stone_charge = float(data.get('stone_charge', 0) or 0)
     hallmark_charge = float(data.get('hallmark_charge', 0) or 0)
     discount = float(data.get('discount', 0) or 0)
+    old_item_purity = data.get('old_item_purity', '')
     old_item_grams = float(data.get('old_item_grams', 0) or 0)
     old_item_rate = float(data.get('old_item_rate', 0) or 0)
-    old_item_value = round(old_item_grams * old_item_rate, 2)
+    old_mult = get_purity_multiplier(old_item_purity)
+    old_item_value = round(old_item_grams * old_item_rate * old_mult, 2)
     making_type = data.get('making_charge_type', 'per_gram')
     gross_weight = float(data.get('gross_weight', 0) or 0)
     stone_weight = float(data.get('stone_weight', 0) or 0)
