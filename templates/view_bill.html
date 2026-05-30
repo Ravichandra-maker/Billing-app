@@ -253,25 +253,36 @@
   }
 
   .signature-box {
-    text-align: right; /* Aligned right under calculations */
-    width: 140px;
-    align-self: flex-end; /* Right side alignment */
+    text-align: center;
+    width: 170px;
+    align-self: flex-end;
     margin-bottom: 2px;
-    margin-top: 25px; /* Forces vertical space for the physical signature */
+    margin-top: auto; /* Push to bottom of flex column */
+    padding-top: 4px;
+  }
+
+  .signature-box .sig-img {
+    display: block;
+    width: 100%; /* Fill the entire signature box width */
+    height: auto; /* Maintain aspect ratio */
+    margin: 0 auto 3px auto;
+    mix-blend-mode: multiply;
   }
 
   .signature-box .sig-line {
-    border-top: 1px solid #000;
+    border-top: 1.2px solid #000;
     width: 100%;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .signature-box p {
-    font-size: 8.5px;
+    font-size: 8px;
     font-weight: 700;
     color: #333;
     margin: 0;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-align: center;
   }
 
   /* Totals list */
@@ -451,8 +462,34 @@
 
 <div class="no-print responsive-flex-header" style="align-items:center; border-bottom:none; padding-bottom:0; margin-bottom:32px;">
   <h2 class="headline-lg">Invoice <span class="serif-italic">{{ bill.bill_number or ('LSJ-' ~ bill.id) }}</span></h2>
-  <div style="display:flex;gap:12px;">
+  <div style="display:flex;gap:12px;align-items:center;">
     <a href="/bills" class="btn">← All Bills</a>
+    
+    <div class="share-wrapper" style="position:relative; display:inline-block;">
+      <button type="button" class="btn btn-outline btn-share" onclick="toggleShareDropdown(this, event)">
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">share</span> Share
+      </button>
+      <div class="share-dropdown" id="share-dropdown-{{ bill.id }}" style="top:calc(100% + 8px); right:0; min-width: 250px;">
+        <div class="share-dropdown-header">Share PDF Invoice</div>
+        <a class="share-option" onclick="sharePdfNative('{{ bill.id }}', '{{ bill.bill_number or ('LSJ-' ~ bill.id) }}', '{{ bill.customer_name }}')">
+          <span class="share-icon whatsapp"><span class="material-symbols-outlined" style="font-size:16px;">share</span></span>
+          Share PDF Direct (WhatsApp/Apps)
+        </a>
+        <a class="share-option" onclick="shareEmailServer('{{ bill.id }}', '{{ bill.customer_name }}', '{{ bill.bill_number or ('LSJ-' ~ bill.id) }}')">
+          <span class="share-icon email"><span class="material-symbols-outlined" style="font-size:16px;">mail</span></span>
+          Email PDF (Direct SMTP)
+        </a>
+        <a class="share-option" href="/bill/{{ bill.id }}/pdf" download="Invoice_{{ bill.bill_number or ('LSJ-' ~ bill.id) }}.pdf">
+          <span class="share-icon sms"><span class="material-symbols-outlined" style="font-size:16px;">download</span></span>
+          Download PDF File
+        </a>
+        <a class="share-option" onclick="copyBillLink('{{ bill.id }}')">
+          <span class="share-icon copy-link"><span class="material-symbols-outlined" style="font-size:16px;">link</span></span>
+          Copy PDF Link
+        </a>
+      </div>
+    </div>
+
     <button onclick="window.print()" class="btn btn-primary" id="btn-print">
       <span class="material-symbols-outlined">print</span> Print Invoice
     </button>
@@ -658,6 +695,7 @@
       </div>
 
       <div class="signature-box">
+        <img src="/static/signature_clean.png" alt="Signature" class="sig-img">
         <div class="sig-line"></div>
         <p>Authorized Signature</p>
       </div>
@@ -678,4 +716,131 @@
     </button>
   </form>
 </div>
+
+<!-- Share Toast Notification -->
+<div class="share-toast" id="shareToast">Link copied to clipboard!</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleShareDropdown(btn, event) {
+  event.stopPropagation();
+  const dropdown = btn.nextElementSibling;
+  dropdown.classList.toggle('active');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.share-wrapper')) {
+    document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
+  }
+});
+
+function getBillPdfUrl(billId) {
+  return window.location.origin + '/bill/' + billId + '/pdf';
+}
+
+function showToast(message) {
+  const toast = document.getElementById('shareToast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+async function sharePdfNative(billId, billNumber, customerName) {
+  closeAllDropdowns();
+  const pdfUrl = `/bill/${billId}/pdf`;
+  const fileName = `Invoice_${billNumber}.pdf`;
+  
+  showToast("Preparing PDF file...");
+  
+  try {
+    const response = await fetch(pdfUrl);
+    const blob = await response.blob();
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Invoice ${billNumber}`,
+        text: `Dear ${customerName},\n\nGreetings from Laxmi Srinivasa Jewellery!\n\nPlease find attached your Tax Invoice (${billNumber}) in PDF format.\n\nThank you for your patronage!\n— Laxmi Srinivasa Jewellery`
+      });
+    } else {
+      // Fallback: trigger download
+      showToast("Direct sharing unsupported. Downloading PDF file...");
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  } catch (err) {
+    console.error("Native share failed:", err);
+    alert("Could not share file directly. Downloading PDF to your device instead.");
+    // Fallback: regular download redirect
+    window.location.href = pdfUrl;
+  }
+}
+
+async function shareEmailServer(billId, customer, billNumber) {
+  closeAllDropdowns();
+  const email = prompt(`Enter email address to send Tax Invoice PDF directly to ${customer}:`, "");
+  if (email === null) return; // user cancelled
+  
+  const trimmed = email.trim();
+  if (!trimmed) {
+    alert("Email address is required.");
+    return;
+  }
+  
+  // Basic validation
+  if (!trimmed.includes('@') || trimmed.length < 5) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+  
+  showToast("Sending email with PDF attachment...");
+  
+  try {
+    const response = await fetch(`/api/bill/${billId}/share/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: trimmed })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast("Email sent successfully with PDF attached!");
+    } else {
+      alert("Error sending email: " + result.message);
+    }
+  } catch (err) {
+    console.error("SMTP share failed:", err);
+    alert("Failed to send email. Please check your internet connection or .env SMTP configurations.");
+  }
+}
+
+function copyBillLink(billId) {
+  const pdfUrl = getBillPdfUrl(billId);
+  navigator.clipboard.writeText(pdfUrl).then(() => {
+    showToast("Link copied to clipboard!");
+  }).catch(() => {
+    // Fallback for older browsers
+    const input = document.createElement('input');
+    input.value = pdfUrl;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    showToast("Link copied to clipboard!");
+  });
+  closeAllDropdowns();
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
+}
+</script>
 {% endblock %}

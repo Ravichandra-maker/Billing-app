@@ -32,6 +32,7 @@
         <th>Category</th>
         <th>Purity</th>
         <th>Weight (g)</th>
+        <th>Total Weight (g)</th>
         <th>Stock Level</th>
         <th style="text-align:right;">Actions</th>
       </tr>
@@ -45,6 +46,23 @@
         <td><span class="tag">{{ item.item_type|upper }}</span></td>
         <td>{{ item.purity or '-' }}</td>
         <td>{{ "%.3f"|format(item.net_weight) }}</td>
+        <td>
+          {% if item.total_weight and item.total_weight > 0 %}
+            {% if item.total_weight <= 10 %}
+              <span style="display:flex;align-items:center;gap:6px;color:var(--error);">
+                <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+                {{ "%.3f"|format(item.total_weight) }}g
+              </span>
+            {% else %}
+              <span style="display:flex;align-items:center;gap:6px;">
+                <span style="width:6px;height:6px;background:var(--primary);display:inline-block;"></span>
+                {{ "%.3f"|format(item.total_weight) }}g
+              </span>
+            {% endif %}
+          {% else %}
+            <span class="text-secondary">—</span>
+          {% endif %}
+        </td>
         <td>
           {% if item.quantity <= 0 %} <span class="tag tag-filled" style="font-size:10px;">OUT OF STOCK</span>
             {% elif item.quantity <= item.low_stock_alert %} <span
@@ -70,7 +88,7 @@
       {% endfor %}
       {% else %}
       <tr>
-        <td colspan="7">
+        <td colspan="8">
           <div class="empty-state">
             <span class="material-symbols-outlined">inventory_2</span>
             <h3>No Inventory Items</h3>

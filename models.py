@@ -86,6 +86,7 @@ class InventoryItem(db.Model):
     wastage_percent = db.Column(db.Float, default=0.0)
     stone_charge = db.Column(db.Float, default=0.0)
     hallmark_charge = db.Column(db.Float, default=0.0)
+    total_weight = db.Column(db.Float, default=0.0)       # Total available weight in grams
     quantity = db.Column(db.Integer, default=1)           # Stock count
     low_stock_alert = db.Column(db.Integer, default=2)   # Alert when <= this value
     image_url = db.Column(db.String(200), default='')

@@ -1,12 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, send_file
 from models import db, Bill, InventoryItem, BillItem
 from datetime import datetime
 import calendar
 import os
+import io
 import webbrowser
 import threading
 import requests
 from dotenv import load_dotenv
+from reportlab.lib.pagesizes import landscape, A5
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 # Load environment variables
 load_dotenv()
@@ -35,6 +42,14 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    # Check if total_weight column exists in inventory_item table, if not add it
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("ALTER TABLE inventory_item ADD COLUMN total_weight FLOAT DEFAULT 0.0"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
 
 # ===== PURITY MULTIPLIERS FOR CALCULATIONS =====
 PURITY_MULTIPLIERS = {
@@ -425,6 +440,9 @@ def create_bill():
             if inv_item:
                 if inv_item.quantity > 0:
                     inv_item.quantity -= 1
+                    # Deduct billed weight from inventory total_weight
+                    if inv_item.total_weight and inv_item.total_weight > 0:
+                        inv_item.total_weight = round(max(inv_item.total_weight - nw, 0), 3)
                     db.session.add(inv_item)
                 else:
                     flash(f'Warning: Item {inv_item.item_code} is out of stock.', 'warning')
@@ -443,7 +461,8 @@ def create_bill():
                 item_rate=rate,
                 stone_charge=stone_charge,
                 hallmark_charge=hallmark_charge,
-                item_amount=item_subtotal
+                item_amount=item_subtotal,
+                inventory_item_id=inv_item.id if inv_item else None
             )
             bill_items.append(b_item)
 
@@ -509,6 +528,7 @@ def create_bill():
             amount_paid=amount_paid,
             balance=balance,
             status=status,
+            inventory_item_id=bill_items[0].inventory_item_id if bill_items else None,
             notes=form.get('notes', '')
         )
         
@@ -558,11 +578,23 @@ def all_bills():
 
 @app.route('/delete-bill/<int:bill_id>', methods=['POST'])
 def delete_bill(bill_id):
-    """Delete a bill"""
+    """Delete a bill and restore inventory weight"""
     bill = Bill.query.get_or_404(bill_id)
+    
+    # Restore inventory weight and quantity for each bill item
+    for bi in bill.items:
+        if bi.inventory_item_id:
+            inv_item = InventoryItem.query.get(bi.inventory_item_id)
+            if inv_item:
+                inv_item.quantity += 1
+                billed_weight = bi.net_weight or bi.grams or 0
+                if billed_weight > 0:
+                    inv_item.total_weight = round((inv_item.total_weight or 0) + billed_weight, 3)
+                db.session.add(inv_item)
+    
     db.session.delete(bill)
     db.session.commit()
-    flash('Bill deleted successfully!', 'success')
+    flash('Bill deleted successfully! Inventory restored.', 'success')
     return redirect(url_for('all_bills'))
 
 
@@ -700,6 +732,7 @@ def add_inventory():
                 wastage_percent=float(form.get('wastage_percent', 0) or 0),
                 stone_charge=float(form.get('stone_charge', 0) or 0),
                 hallmark_charge=float(form.get('hallmark_charge', 0) or 0),
+                total_weight=float(form.get('total_weight', 0) or 0),
                 quantity=int(form.get('quantity', 1) or 1),
                 low_stock_alert=int(form.get('low_stock_alert', 2) or 2)
             )
@@ -733,6 +766,7 @@ def edit_inventory(item_id):
             item.wastage_percent = float(form.get('wastage_percent', 0) or 0)
             item.stone_charge = float(form.get('stone_charge', 0) or 0)
             item.hallmark_charge = float(form.get('hallmark_charge', 0) or 0)
+            item.total_weight = float(form.get('total_weight', 0) or 0)
             item.quantity = int(form.get('quantity', 1) or 1)
             item.low_stock_alert = int(form.get('low_stock_alert', 2) or 2)
 
@@ -781,6 +815,7 @@ def search_inventory():
         'wastage_percent': item.wastage_percent,
         'stone_charge': item.stone_charge,
         'hallmark_charge': item.hallmark_charge,
+        'total_weight': item.total_weight,
         'quantity': item.quantity
     } for item in items])
 
@@ -790,6 +825,311 @@ def open_browser():
     import time
     time.sleep(1.5)
     webbrowser.open_new_tab('http://127.0.0.1:5000')
+
+
+# ===== PDF GENERATION =====
+
+def generate_bill_pdf_bytes(bill):
+    """Generate and return invoice PDF bytes for a bill"""
+    buf = io.BytesIO()
+    page_w, page_h = 200 * mm, 150 * mm
+    doc = SimpleDocTemplate(buf, pagesize=(page_w, page_h),
+                            leftMargin=10*mm, rightMargin=10*mm,
+                            topMargin=8*mm, bottomMargin=6*mm)
+    
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    style_title = ParagraphStyle('InvTitle', parent=styles['Heading1'],
+                                  fontSize=14, textColor=colors.HexColor('#000000'),
+                                  alignment=TA_LEFT, spaceAfter=2)
+    style_subtitle = ParagraphStyle('InvSub', parent=styles['Normal'],
+                                     fontSize=8, textColor=colors.HexColor('#444444'),
+                                     alignment=TA_LEFT, spaceAfter=4)
+    style_meta = ParagraphStyle('InvMeta', parent=styles['Normal'],
+                                 fontSize=9, textColor=colors.HexColor('#111111'),
+                                 alignment=TA_RIGHT, spaceAfter=2)
+    style_normal = ParagraphStyle('InvNormal', parent=styles['Normal'],
+                                   fontSize=9, textColor=colors.HexColor('#111111'))
+    style_bold = ParagraphStyle('InvBold', parent=styles['Normal'],
+                                 fontSize=9, textColor=colors.HexColor('#000000'),
+                                 fontName='Helvetica-Bold')
+    style_footer = ParagraphStyle('InvFooter', parent=styles['Normal'],
+                                   fontSize=8, textColor=colors.HexColor('#555555'),
+                                   alignment=TA_CENTER, fontName='Helvetica-Oblique')
+    style_grand = ParagraphStyle('InvGrand', parent=styles['Normal'],
+                                  fontSize=11, textColor=colors.HexColor('#000000'),
+                                  fontName='Helvetica-Bold')
+    
+    elements = []
+    gold_color = colors.HexColor('#c5a96e')
+    
+    # -- Header table (brand left, meta right) --
+    header_data = [[
+        Paragraph('<b>Laxmi Srinivasa Jewellery</b><br/><font size="7" color="#444">Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</font>', style_title),
+        Paragraph(f'<font size="8" color="#8b6914"><b>TAX INVOICE</b></font><br/>'
+                  f'<font size="9"><b>Invoice:</b> {bill.bill_number or "LSJ-" + str(bill.id)}</font><br/>'
+                  f'<font size="9"><b>Date:</b> {bill.date}</font>', style_meta)
+    ]]
+    header_tbl = Table(header_data, colWidths=[105*mm, 75*mm])
+    header_tbl.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, gold_color),
+    ]))
+    elements.append(header_tbl)
+    elements.append(Spacer(1, 4*mm))
+    
+    # -- Bill To --
+    addr = f', {bill.address}' if bill.address else ''
+    cust_text = f'<b>BILL TO:</b> <b>{bill.customer_name}</b>{addr} | Ph: {bill.phone}'
+    elements.append(Paragraph(cust_text, style_normal))
+    elements.append(Spacer(1, 3*mm))
+    elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#eeeeee')))
+    elements.append(Spacer(1, 2*mm))
+    
+    # -- Items Table --
+    items_header = ['Item', 'HSN', 'Type', 'Purity', 'Gross Wt', 'Stone Wt', 'Net Wt', 'Rate/g', 'Amount']
+    items_data = [items_header]
+    
+    bill_items_list = bill.items if bill.items else [bill]
+    
+    for item in bill_items_list:
+        iname = getattr(item, 'item_name', '') or 'Jewellery Item'
+        itype = getattr(item, 'item_type', '') or ''
+        ipurity = getattr(item, 'purity', '') or '-'
+        igw = getattr(item, 'gross_weight', 0) or getattr(item, 'grams', 0) or 0
+        isw = getattr(item, 'stone_weight', 0) or 0
+        inw = getattr(item, 'net_weight', 0) or getattr(item, 'grams', 0) or 0
+        irate = getattr(item, 'item_rate', 0) or 0
+        iamt = round(inw * irate, 2)
+        
+        items_data.append([
+            iname, '7113', itype.upper(), ipurity,
+            f'{igw:.3f}g', f'{isw:.3f}g', f'{inw:.3f}g',
+            f'Rs.{irate:,.2f}', f'Rs.{iamt:,.2f}'
+        ])
+    
+    col_widths = [30*mm, 12*mm, 16*mm, 14*mm, 18*mm, 18*mm, 18*mm, 22*mm, 24*mm]
+    items_tbl = Table(items_data, colWidths=col_widths)
+    items_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#faf7f2')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#333333')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (3, -1), 'CENTER'),
+        ('ALIGN', (4, 0), (-1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ('BOX', (0, 0), (-1, 0), 1, gold_color),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(items_tbl)
+    elements.append(Spacer(1, 4*mm))
+    
+    # -- Totals Section --
+    total_metal = 0
+    total_making = 0
+    total_wastage = 0
+    
+    for item in bill_items_list:
+        inw = getattr(item, 'net_weight', 0) or getattr(item, 'grams', 0) or 0
+        irate = getattr(item, 'item_rate', 0) or 0
+        imaking = getattr(item, 'making_charge', 0) or 0
+        imaking_type = getattr(item, 'making_charge_type', 'per_gram') or 'per_gram'
+        iwastage = getattr(item, 'wastage_percent', 0) or 0
+        
+        total_metal += inw * irate
+        if imaking_type == 'per_gram':
+            total_making += inw * imaking
+        elif imaking_type == 'percentage':
+            total_making += (imaking / 100) * irate * inw
+        else:
+            total_making += imaking
+        total_wastage += (iwastage / 100) * irate * inw
+    
+    totals_data = []
+    totals_data.append(['Total Metal Value', f'Rs.{total_metal:,.2f}'])
+    totals_data.append(['Total Making Charges', f'Rs.{total_making:,.2f}'])
+    totals_data.append(['Total Wastage', f'Rs.{total_wastage:,.2f}'])
+    if bill.stone_charge:
+        totals_data.append(['Stone/Setting Charge', f'Rs.{bill.stone_charge:,.2f}'])
+    if bill.hallmark_charge:
+        totals_data.append(['Hallmark Charge', f'Rs.{bill.hallmark_charge:,.2f}'])
+    totals_data.append(['Subtotal', f'Rs.{(bill.subtotal or bill.total):,.2f}'])
+    totals_data.append([f'CGST (1.5%)', f'Rs.{(bill.cgst or 0):,.2f}'])
+    totals_data.append([f'SGST (1.5%)', f'Rs.{(bill.sgst or 0):,.2f}'])
+    if bill.discount:
+        totals_data.append(['Discount', f'-Rs.{bill.discount:,.2f}'])
+    if bill.old_item_value:
+        totals_data.append([f'Exchange ({(bill.old_item_type or "").upper()})', f'-Rs.{bill.old_item_value:,.2f}'])
+    totals_data.append(['GRAND TOTAL', f'Rs.{bill.total:,.2f}'])
+    
+    if bill.amount_paid and bill.amount_paid != bill.total:
+        totals_data.append(['Amount Paid', f'Rs.{bill.amount_paid:,.2f}'])
+        totals_data.append(['Balance Due', f'Rs.{bill.balance:,.2f}'])
+    
+    # Build totals + payment/signature in a two-column layout
+    payment_text = f'<b>Payment Mode:</b> {bill.payment_mode}<br/><b>Status:</b> {bill.status.upper()}'
+    
+    totals_tbl = Table(totals_data, colWidths=[45*mm, 30*mm])
+    totals_style = [
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]
+    # Bold the grand total row
+    gt_idx = len(totals_data) - 1
+    if bill.amount_paid and bill.amount_paid != bill.total:
+        gt_idx = len(totals_data) - 3
+    totals_style.append(('FONTNAME', (0, gt_idx), (-1, gt_idx), 'Helvetica-Bold'))
+    totals_style.append(('FONTSIZE', (0, gt_idx), (-1, gt_idx), 10))
+    totals_style.append(('LINEABOVE', (0, gt_idx), (-1, gt_idx), 1, gold_color))
+    totals_style.append(('BACKGROUND', (0, gt_idx), (-1, gt_idx), colors.HexColor('#faf7f2')))
+    totals_tbl.setStyle(TableStyle(totals_style))
+    
+    # Combine payment info + totals/signature in two columns
+    sig_img_path = 'static/signature_clean.png'
+    right_column_flowables = [totals_tbl]
+    
+    if os.path.exists(sig_img_path):
+        # Insert transparent clean signature image - sized to match the signature line width
+        sig_img = Image(sig_img_path, width=45*mm, height=16*mm)
+        sig_img.hAlign = 'RIGHT'
+        
+        sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
+                                         fontSize=6.5, textColor=colors.HexColor('#333333'),
+                                         alignment=TA_RIGHT, fontName='Helvetica-Bold')
+        
+        right_column_flowables.append(Spacer(1, 2*mm))
+        right_column_flowables.append(sig_img)
+        right_column_flowables.append(Spacer(1, 1*mm))
+        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
+        right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
+    else:
+        sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
+                                         fontSize=6.5, textColor=colors.HexColor('#333333'),
+                                         alignment=TA_RIGHT, fontName='Helvetica-Bold')
+        right_column_flowables.append(Spacer(1, 8*mm))
+        right_column_flowables.append(HRFlowable(width='80', thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
+        right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
+
+    bottom_data = [[
+        Paragraph(payment_text, style_normal),
+        right_column_flowables
+    ]]
+    bottom_tbl = Table(bottom_data, colWidths=[95*mm, 80*mm])
+    bottom_tbl.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+    ]))
+    elements.append(bottom_tbl)
+    elements.append(Spacer(1, 2*mm))
+    
+    # -- Footer --
+    elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#eeeeee')))
+    elements.append(Spacer(1, 2*mm))
+    elements.append(Paragraph('Thank you for choosing Laxmi Srinivasa Jewellery • Prestige • Quality • Integrity', style_footer))
+    
+    doc.build(elements)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+@app.route('/bill/<int:bill_id>/pdf')
+def bill_pdf(bill_id):
+    """Generate and return invoice PDF for sharing"""
+    bill = Bill.query.get_or_404(bill_id)
+    pdf_bytes = generate_bill_pdf_bytes(bill)
+    buf = io.BytesIO(pdf_bytes)
+    filename = f'Invoice_{bill.bill_number or "LSJ-" + str(bill.id)}.pdf'
+    return send_file(buf, mimetype='application/pdf', download_name=filename, as_attachment=False)
+
+
+def send_bill_email(bill, recipient_email):
+    """Send bill PDF via SMTP mail with the actual PDF attached"""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+    
+    smtp_server = os.getenv('SMTP_SERVER')
+    smtp_port = os.getenv('SMTP_PORT', '587')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    smtp_sender = os.getenv('SMTP_SENDER', smtp_user)
+    
+    if not smtp_server or not smtp_user or not smtp_password:
+        return False, "SMTP not configured. Please set SMTP_SERVER, SMTP_USER, and SMTP_PASSWORD in your .env file."
+    
+    # Validate that the password looks like a Gmail App Password (16 chars, no special chars)
+    # Regular Gmail passwords won't work with SMTP - need App Password from Google Account
+    clean_pwd = smtp_password.strip().replace(' ', '')
+    if smtp_server == 'smtp.gmail.com' and (len(clean_pwd) != 16 or not clean_pwd.isalpha()):
+        return False, ("Gmail requires a 16-character App Password (not your regular Gmail password). "
+                       "Go to Google Account → Security → 2-Step Verification → App Passwords, "
+                       "generate one, and put it in your .env file as SMTP_PASSWORD.")
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_sender
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Tax Invoice {bill.bill_number or 'LSJ-' + str(bill.id)} - Laxmi Srinivasa Jewellery"
+        
+        body = f"""Dear {bill.customer_name},
+
+Please find attached your Tax Invoice ({bill.bill_number or 'LSJ-' + str(bill.id)}) in PDF format from Laxmi Srinivasa Jewellery.
+
+Thank you for your patronage!
+
+Best Regards,
+Laxmi Srinivasa Jewellery
+Annavaram - 533406
+"""
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Generate and attach PDF
+        pdf_bytes = generate_bill_pdf_bytes(bill)
+        
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        
+        filename = f"Invoice_{bill.bill_number or 'LSJ-' + str(bill.id)}.pdf"
+        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+        msg.attach(part)
+        
+        # Connect and send
+        server = smtplib.SMTP(smtp_server, int(smtp_port))
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.sendmail(smtp_sender, recipient_email, msg.as_string())
+        server.quit()
+        
+        return True, "Email sent successfully with the actual PDF attached!"
+    except Exception as e:
+        return False, f"Failed to send email: {str(e)}"
+
+
+@app.route('/api/bill/<int:bill_id>/share/email', methods=['POST'])
+def share_bill_email(bill_id):
+    """API endpoint to send bill PDF via email attachment"""
+    bill = Bill.query.get_or_404(bill_id)
+    data = request.json or {}
+    recipient_email = data.get('email', '').strip()
+    
+    if not recipient_email:
+        return jsonify({'success': False, 'message': 'Recipient email address is required.'}), 400
+        
+    success, message = send_bill_email(bill, recipient_email)
+    if success:
+        return jsonify({'success': True, 'message': message})
+    else:
+        return jsonify({'success': False, 'message': message})
 
 
 if __name__ == '__main__':

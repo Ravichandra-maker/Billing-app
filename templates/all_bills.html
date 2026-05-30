@@ -95,7 +95,33 @@
               </span>
             </td>
             <td style="text-align:right;">
-              <a href="/bill/{{ b.id }}" class="btn btn-sm">View</a>
+              <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+                <a href="/bill/{{ b.id }}" class="btn btn-sm">View</a>
+                <div class="share-wrapper">
+                  <button type="button" class="btn btn-sm btn-share" onclick="toggleShareDropdown(this, event)">
+                    <span class="material-symbols-outlined" style="font-size:14px;">share</span> Share
+                  </button>
+                  <div class="share-dropdown" id="share-dropdown-{{ b.id }}" style="min-width: 250px;">
+                    <div class="share-dropdown-header">Share PDF Invoice</div>
+                    <a class="share-option" onclick="sharePdfNative('{{ b.id }}', '{{ b.bill_number or ('LSJ-' ~ b.id) }}', '{{ b.customer_name }}')">
+                      <span class="share-icon whatsapp"><span class="material-symbols-outlined" style="font-size:16px;">share</span></span>
+                      Share PDF Direct (WhatsApp/Apps)
+                    </a>
+                    <a class="share-option" onclick="shareEmailServer('{{ b.id }}', '{{ b.customer_name }}', '{{ b.bill_number or ('LSJ-' ~ b.id) }}')">
+                      <span class="share-icon email"><span class="material-symbols-outlined" style="font-size:16px;">mail</span></span>
+                      Email PDF (Direct SMTP)
+                    </a>
+                    <a class="share-option" href="/bill/{{ b.id }}/pdf" download="Invoice_{{ b.bill_number or ('LSJ-' ~ b.id) }}.pdf">
+                      <span class="share-icon sms"><span class="material-symbols-outlined" style="font-size:16px;">download</span></span>
+                      Download PDF File
+                    </a>
+                    <a class="share-option" onclick="copyBillLink('{{ b.id }}')">
+                      <span class="share-icon copy-link"><span class="material-symbols-outlined" style="font-size:16px;">link</span></span>
+                      Copy PDF Link
+                    </a>
+                  </div>
+                </div>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -114,9 +140,138 @@
   </div>
 </div>
 
+<!-- Share Toast Notification -->
+<div class="share-toast" id="shareToast">Link copied to clipboard!</div>
+
 <!-- Footer Info -->
 <div
   style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--primary);">
   <span class="italic text-secondary">Showing {{ bills|length }} total bills.</span>
 </div>
+
+<script>
+function toggleShareDropdown(btn, event) {
+  event.stopPropagation();
+  // Close all other dropdowns first
+  document.querySelectorAll('.share-dropdown.active').forEach(d => {
+    if (d !== btn.nextElementSibling) d.classList.remove('active');
+  });
+  const dropdown = btn.nextElementSibling;
+  dropdown.classList.toggle('active');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.share-wrapper')) {
+    document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
+  }
+});
+
+function getBillPdfUrl(billId) {
+  return window.location.origin + '/bill/' + billId + '/pdf';
+}
+
+function showToast(message) {
+  const toast = document.getElementById('shareToast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+async function sharePdfNative(billId, billNumber, customerName) {
+  closeAllDropdowns();
+  const pdfUrl = `/bill/${billId}/pdf`;
+  const fileName = `Invoice_${billNumber}.pdf`;
+  
+  showToast("Preparing PDF file...");
+  
+  try {
+    const response = await fetch(pdfUrl);
+    const blob = await response.blob();
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Invoice ${billNumber}`,
+        text: `Dear ${customerName},\n\nGreetings from Laxmi Srinivasa Jewellery!\n\nPlease find attached your Tax Invoice (${billNumber}) in PDF format.\n\nThank you for your patronage!\n— Laxmi Srinivasa Jewellery`
+      });
+    } else {
+      // Fallback: trigger download
+      showToast("Direct sharing unsupported. Downloading PDF file...");
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  } catch (err) {
+    console.error("Native share failed:", err);
+    alert("Could not share file directly. Downloading PDF to your device instead.");
+    // Fallback: regular download redirect
+    window.location.href = pdfUrl;
+  }
+}
+
+async function shareEmailServer(billId, customer, billNumber) {
+  closeAllDropdowns();
+  const email = prompt(`Enter email address to send Tax Invoice PDF directly to ${customer}:`, "");
+  if (email === null) return; // user cancelled
+  
+  const trimmed = email.trim();
+  if (!trimmed) {
+    alert("Email address is required.");
+    return;
+  }
+  
+  // Basic validation
+  if (!trimmed.includes('@') || trimmed.length < 5) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+  
+  showToast("Sending email with PDF attachment...");
+  
+  try {
+    const response = await fetch(`/api/bill/${billId}/share/email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: trimmed })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast("Email sent successfully with PDF attached!");
+    } else {
+      alert("Error sending email: " + result.message);
+    }
+  } catch (err) {
+    console.error("SMTP share failed:", err);
+    alert("Failed to send email. Please check your internet connection or .env SMTP configurations.");
+  }
+}
+
+function copyBillLink(billId) {
+  const pdfUrl = getBillPdfUrl(billId);
+  navigator.clipboard.writeText(pdfUrl).then(() => {
+    showToast("Link copied to clipboard!");
+  }).catch(() => {
+    // Fallback for older browsers
+    const input = document.createElement('input');
+    input.value = pdfUrl;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    showToast("Link copied to clipboard!");
+  });
+  closeAllDropdowns();
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
+}
+</script>
 {% endblock %}

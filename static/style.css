@@ -1052,6 +1052,137 @@ textarea.form-control {
 }
 
 /* ============================
+   SHARE DROPDOWN
+   ============================ */
+.share-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.share-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  min-width: 220px;
+  padding: 8px 0;
+  display: none;
+  animation: shareDropIn 0.15s ease-out;
+}
+
+.share-dropdown.active {
+  display: block;
+}
+
+@keyframes shareDropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.share-dropdown-header {
+  padding: 8px 16px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.share-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
+
+.share-option:hover {
+  background: var(--surface-hover);
+}
+
+.share-option .share-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.share-icon.whatsapp {
+  background: #25D366;
+  color: white;
+}
+
+.share-icon.email {
+  background: #4285F4;
+  color: white;
+}
+
+.share-icon.sms {
+  background: #FF9800;
+  color: white;
+}
+
+.share-icon.copy-link {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.share-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--primary);
+  color: var(--on-primary);
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.share-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.btn-share {
+  background: linear-gradient(135deg, var(--accent), #b8953f);
+  color: white;
+  border-color: var(--accent);
+}
+
+.btn-share:hover {
+  background: linear-gradient(135deg, #b8953f, var(--accent));
+  border-color: #b8953f;
+  color: white;
+}
+
+/* ============================
    PRINT
    ============================ */
 @media print {

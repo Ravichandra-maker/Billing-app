@@ -125,6 +125,12 @@
           required value="{{ item.quantity if item else '1' }}">
       </div>
       <div class="form-group" style="margin-bottom:24px;">
+        <label class="form-label">Total Weight (g) <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;color:var(--primary);">scale</span></label>
+        <input type="number" step="0.001" name="total_weight" class="form-control font-bold" style="font-size:24px;text-align:center;"
+          value="{{ item.total_weight if item else '0' }}">
+        <span style="font-size:11px;opacity:0.5;margin-top:4px;display:block;">Total available weight. Reduces automatically when billed.</span>
+      </div>
+      <div class="form-group" style="margin-bottom:24px;">
         <label class="form-label">Low Stock Alert Level</label>
         <input type="number" name="low_stock_alert" class="form-control"
           value="{{ item.low_stock_alert if item else '2' }}">
@@ -143,11 +149,35 @@
 
 <script>
   const g = document.getElementById('inv-gross'), s = document.getElementById('inv-stone-w'), n = document.getElementById('inv-net');
-  function updateNet() { n.value = ((parseFloat(g.value) || 0) - (parseFloat(s.value) || 0)).toFixed(3); }
+  const qtyInput = document.querySelector('input[name="quantity"]');
+  const totalWeightInput = document.querySelector('input[name="total_weight"]');
+  const isEdit = {{ 'true' if item else 'false' }};
+  let manuallyEditedTotalWeight = false;
+
+  if (totalWeightInput) {
+    totalWeightInput.addEventListener('input', () => {
+      manuallyEditedTotalWeight = true;
+    });
+  }
+
+  function updateTotalWeight() {
+    if (manuallyEditedTotalWeight || !totalWeightInput) return;
+    const qty = parseInt(qtyInput.value) || 1;
+    const net = parseFloat(n.value) || 0;
+    totalWeightInput.value = (qty * net).toFixed(3);
+  }
+
+  function updateNet() { 
+    n.value = ((parseFloat(g.value) || 0) - (parseFloat(s.value) || 0)).toFixed(3); 
+    updateTotalWeight();
+  }
+
   g.addEventListener('input', updateNet);
   s.addEventListener('input', updateNet);
+  if (qtyInput) {
+    qtyInput.addEventListener('input', updateTotalWeight);
+  }
 
-  const isEdit = {{ 'true' if item else 'false' }};
   if (!isEdit) {
     const typeSelect = document.getElementById('input-item-type');
     const codeInput = document.getElementById('input-item-code');
