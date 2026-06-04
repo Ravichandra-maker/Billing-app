@@ -16,7 +16,30 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
+
+import platform
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+font_registered = False
+if platform.system() == 'Windows':
+    arial_path = 'C:/Windows/Fonts/arial.ttf'
+    arial_bold_path = 'C:/Windows/Fonts/arialbd.ttf'
+    arial_italic_path = 'C:/Windows/Fonts/ariali.ttf'
+    arial_bi_path = 'C:/Windows/Fonts/arialbi.ttf'
+    if os.path.exists(arial_path):
+        try:
+            pdfmetrics.registerFont(TTFont('Arial', arial_path))
+            if os.path.exists(arial_bold_path):
+                pdfmetrics.registerFont(TTFont('Arial-Bold', arial_bold_path))
+            if os.path.exists(arial_italic_path):
+                pdfmetrics.registerFont(TTFont('Arial-Italic', arial_italic_path))
+            if os.path.exists(arial_bi_path):
+                pdfmetrics.registerFont(TTFont('Arial-BoldItalic', arial_bi_path))
+            font_registered = True
+        except Exception as e:
+            print("Failed to register Arial font:", e)
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'lakshmi_srinivasa_jewellery_2026')
@@ -837,29 +860,40 @@ def generate_bill_pdf_bytes(bill):
                             leftMargin=10*mm, rightMargin=10*mm,
                             topMargin=8*mm, bottomMargin=6*mm)
     
+    # Helper for fonts depending on system registration
+    f_body = 'Arial' if font_registered else 'Helvetica'
+    f_bold = 'Arial-Bold' if font_registered else 'Helvetica-Bold'
+    f_italic = 'Arial-Italic' if font_registered else 'Helvetica-Oblique'
+    
+    # Helper for currency symbol
+    cur_sym = '₹' if font_registered else 'Rs.'
+    
+    def fmt_currency(val):
+        return f'{cur_sym}{val:,.2f}'
+    
     styles = getSampleStyleSheet()
     
-    # Custom styles
+    # Custom styles matching HTML
     style_title = ParagraphStyle('InvTitle', parent=styles['Heading1'],
                                   fontSize=14, textColor=colors.HexColor('#000000'),
-                                  alignment=TA_LEFT, spaceAfter=2)
+                                  alignment=TA_LEFT, spaceAfter=2, fontName='Times-Bold') # Serif font like Cinzel
     style_subtitle = ParagraphStyle('InvSub', parent=styles['Normal'],
                                      fontSize=8, textColor=colors.HexColor('#444444'),
-                                     alignment=TA_LEFT, spaceAfter=4)
+                                     alignment=TA_LEFT, spaceAfter=4, fontName=f_body)
     style_meta = ParagraphStyle('InvMeta', parent=styles['Normal'],
                                  fontSize=9, textColor=colors.HexColor('#111111'),
-                                 alignment=TA_RIGHT, spaceAfter=2)
+                                 alignment=TA_RIGHT, spaceAfter=2, fontName=f_body)
     style_normal = ParagraphStyle('InvNormal', parent=styles['Normal'],
-                                   fontSize=9, textColor=colors.HexColor('#111111'))
+                                   fontSize=9, textColor=colors.HexColor('#111111'), fontName=f_body)
     style_bold = ParagraphStyle('InvBold', parent=styles['Normal'],
                                  fontSize=9, textColor=colors.HexColor('#000000'),
-                                 fontName='Helvetica-Bold')
+                                 fontName=f_bold)
     style_footer = ParagraphStyle('InvFooter', parent=styles['Normal'],
                                    fontSize=8, textColor=colors.HexColor('#555555'),
-                                   alignment=TA_CENTER, fontName='Helvetica-Oblique')
+                                   alignment=TA_CENTER, fontName=f_italic)
     style_grand = ParagraphStyle('InvGrand', parent=styles['Normal'],
                                   fontSize=11, textColor=colors.HexColor('#000000'),
-                                  fontName='Helvetica-Bold')
+                                  fontName=f_bold)
     
     elements = []
     gold_color = colors.HexColor('#c5a96e')
@@ -881,7 +915,7 @@ def generate_bill_pdf_bytes(bill):
     
     # -- Bill To --
     addr = f', {bill.address}' if bill.address else ''
-    cust_text = f'<b>BILL TO:</b> <b>{bill.customer_name}</b>{addr} | Ph: {bill.phone}'
+    cust_text = f'<font color="#8b6914"><b>BILL TO:</b></font> <b>{bill.customer_name}</b>{addr} | Ph: {bill.phone}'
     elements.append(Paragraph(cust_text, style_normal))
     elements.append(Spacer(1, 3*mm))
     elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#eeeeee')))
@@ -906,7 +940,7 @@ def generate_bill_pdf_bytes(bill):
         items_data.append([
             iname, '7113', itype.upper(), ipurity,
             f'{igw:.3f}g', f'{isw:.3f}g', f'{inw:.3f}g',
-            f'Rs.{irate:,.2f}', f'Rs.{iamt:,.2f}'
+            fmt_currency(irate), fmt_currency(iamt)
         ])
     
     col_widths = [30*mm, 12*mm, 16*mm, 14*mm, 18*mm, 18*mm, 18*mm, 22*mm, 24*mm]
@@ -914,13 +948,13 @@ def generate_bill_pdf_bytes(bill):
     items_tbl.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#faf7f2')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#333333')),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), f_bold),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
         ('ALIGN', (1, 0), (3, -1), 'CENTER'),
         ('ALIGN', (4, 0), (-1, -1), 'RIGHT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-        ('BOX', (0, 0), (-1, 0), 1, gold_color),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#eeeeee')),
+        ('BOX', (0, 0), (-1, 0), 1.5, gold_color),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
@@ -950,31 +984,32 @@ def generate_bill_pdf_bytes(bill):
         total_wastage += (iwastage / 100) * irate * inw
     
     totals_data = []
-    totals_data.append(['Total Metal Value', f'Rs.{total_metal:,.2f}'])
-    totals_data.append(['Total Making Charges', f'Rs.{total_making:,.2f}'])
-    totals_data.append(['Total Wastage', f'Rs.{total_wastage:,.2f}'])
+    totals_data.append(['Total Metal Value', fmt_currency(total_metal)])
+    totals_data.append(['Total Making Charges', fmt_currency(total_making)])
+    totals_data.append(['Total Wastage', fmt_currency(total_wastage)])
     if bill.stone_charge:
-        totals_data.append(['Stone/Setting Charge', f'Rs.{bill.stone_charge:,.2f}'])
+        totals_data.append(['Stone/Setting Charge', fmt_currency(bill.stone_charge)])
     if bill.hallmark_charge:
-        totals_data.append(['Hallmark Charge', f'Rs.{bill.hallmark_charge:,.2f}'])
-    totals_data.append(['Subtotal', f'Rs.{(bill.subtotal or bill.total):,.2f}'])
-    totals_data.append([f'CGST (1.5%)', f'Rs.{(bill.cgst or 0):,.2f}'])
-    totals_data.append([f'SGST (1.5%)', f'Rs.{(bill.sgst or 0):,.2f}'])
+        totals_data.append(['Hallmark Charge', fmt_currency(bill.hallmark_charge)])
+    totals_data.append(['Subtotal', fmt_currency(bill.subtotal or bill.total)])
+    totals_data.append([f'CGST (1.5%)', fmt_currency(bill.cgst or 0)])
+    totals_data.append([f'SGST (1.5%)', fmt_currency(bill.sgst or 0)])
     if bill.discount:
-        totals_data.append(['Discount', f'-Rs.{bill.discount:,.2f}'])
+        totals_data.append(['Discount', f'-{fmt_currency(bill.discount)}'])
     if bill.old_item_value:
-        totals_data.append([f'Exchange ({(bill.old_item_type or "").upper()})', f'-Rs.{bill.old_item_value:,.2f}'])
-    totals_data.append(['GRAND TOTAL', f'Rs.{bill.total:,.2f}'])
+        totals_data.append([f'Exchange ({(bill.old_item_type or "").upper()})', f'-{fmt_currency(bill.old_item_value)}'])
+    totals_data.append(['GRAND TOTAL', fmt_currency(bill.total)])
     
     if bill.amount_paid and bill.amount_paid != bill.total:
-        totals_data.append(['Amount Paid', f'Rs.{bill.amount_paid:,.2f}'])
-        totals_data.append(['Balance Due', f'Rs.{bill.balance:,.2f}'])
+        totals_data.append(['Amount Paid', fmt_currency(bill.amount_paid)])
+        totals_data.append(['Balance Due', fmt_currency(bill.balance)])
     
     # Build totals + payment/signature in a two-column layout
     payment_text = f'<b>Payment Mode:</b> {bill.payment_mode}<br/><b>Status:</b> {bill.status.upper()}'
     
     totals_tbl = Table(totals_data, colWidths=[45*mm, 30*mm])
     totals_style = [
+        ('FONTNAME', (0, 0), (-1, -1), f_body),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
         ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
@@ -985,9 +1020,12 @@ def generate_bill_pdf_bytes(bill):
     gt_idx = len(totals_data) - 1
     if bill.amount_paid and bill.amount_paid != bill.total:
         gt_idx = len(totals_data) - 3
-    totals_style.append(('FONTNAME', (0, gt_idx), (-1, gt_idx), 'Helvetica-Bold'))
+    
+    totals_style.append(('FONTNAME', (0, gt_idx), (-1, gt_idx), f_bold))
     totals_style.append(('FONTSIZE', (0, gt_idx), (-1, gt_idx), 10))
     totals_style.append(('LINEABOVE', (0, gt_idx), (-1, gt_idx), 1, gold_color))
+    totals_style.append(('LINEBELOW', (0, gt_idx), (-1, gt_idx), 1, gold_color))
+    totals_style.append(('BOX', (0, gt_idx), (-1, gt_idx), 1, gold_color))
     totals_style.append(('BACKGROUND', (0, gt_idx), (-1, gt_idx), colors.HexColor('#faf7f2')))
     totals_tbl.setStyle(TableStyle(totals_style))
     
@@ -1002,20 +1040,21 @@ def generate_bill_pdf_bytes(bill):
         
         sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
                                          fontSize=6.5, textColor=colors.HexColor('#333333'),
-                                         alignment=TA_RIGHT, fontName='Helvetica-Bold')
+                                         alignment=TA_RIGHT, fontName=f_bold)
         
         right_column_flowables.append(Spacer(1, 1*mm))
         right_column_flowables.append(sig_img)
-        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceBefore=0.5, spaceAfter=0.5))
+        # Negative spaceBefore (-10) pulls the line up, matching the HTML layout where we overlapped the line
+        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceBefore=-10, spaceAfter=0.5))
         right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
     else:
         sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
                                          fontSize=6.5, textColor=colors.HexColor('#333333'),
-                                         alignment=TA_RIGHT, fontName='Helvetica-Bold')
+                                         alignment=TA_RIGHT, fontName=f_bold)
         right_column_flowables.append(Spacer(1, 8*mm))
         right_column_flowables.append(HRFlowable(width='80', thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
         right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
-
+ 
     bottom_data = [[
         Paragraph(payment_text, style_normal),
         right_column_flowables
@@ -1033,7 +1072,29 @@ def generate_bill_pdf_bytes(bill):
     elements.append(Spacer(1, 2*mm))
     elements.append(Paragraph('Thank you for choosing Laxmi Srinivasa Jewellery • Prestige • Quality • Integrity', style_footer))
     
-    doc.build(elements)
+    # Canvas Drawing function to add background border & watermark
+    def draw_background(canvas, doc):
+        canvas.saveState()
+        # Gold border (outer box)
+        canvas.setStrokeColor(colors.HexColor('#c5a96e'))
+        canvas.setLineWidth(1.5)
+        # Margin outlines (slightly inset from page edges)
+        canvas.rect(4*mm, 4*mm, 192*mm, 142*mm, fill=0, stroke=1)
+        
+        # Watermark "LSJ"
+        canvas.setFont('Times-Bold', 85)
+        canvas.setFillColor(colors.HexColor('#000000'), alpha=0.035)
+        
+        # Rotate and draw watermark
+        canvas.saveState()
+        canvas.translate(100*mm, 75*mm)
+        canvas.rotate(-15)
+        canvas.drawCentredString(0, -10*mm, 'LSJ')
+        canvas.restoreState()
+        
+        canvas.restoreState()
+        
+    doc.build(elements, onFirstPage=draw_background)
     buf.seek(0)
     return buf.getvalue()
 
