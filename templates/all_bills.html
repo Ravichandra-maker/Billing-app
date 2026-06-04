@@ -77,7 +77,7 @@
         <tbody>
           {% for b in bills %}
           <tr>
-            <td class="font-bold">{{ b.bill_number or ('LSJ-' ~ b.id) }}</td>
+            <td class="font-bold">{{ b.bill_number or ("LSJ-" ~ b.id) }}</td>
             <td>{{ b.date }}<br><span style="font-size:11px;opacity:0.5;text-transform:uppercase;">{{ b.day_name
                 }}</span></td>
             <td>
@@ -97,21 +97,24 @@
             <td style="text-align:right;">
               <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
                 <a href="/bill/{{ b.id }}" class="btn btn-sm">View</a>
+                <button type="button" class="btn btn-sm" style="background-color: #25D366; color: white; border: none; display: flex; align-items: center; gap: 4px;" onclick="shareViaWhatsApp('{{ b.id }}', '{{ b.bill_number or ("LSJ-" ~ b.id) }}', '{{ b.customer_name }}', '{{ b.phone }}', '{{ b.total }}')">
+                  <span class="material-symbols-outlined" style="font-size:14px;">chat</span> WhatsApp
+                </button>
                 <div class="share-wrapper">
                   <button type="button" class="btn btn-sm btn-share" onclick="toggleShareDropdown(this, event)">
-                    <span class="material-symbols-outlined" style="font-size:14px;">share</span> Share
+                    <span class="material-symbols-outlined" style="font-size:14px;">more_vert</span>
                   </button>
                   <div class="share-dropdown" id="share-dropdown-{{ b.id }}" style="min-width: 250px;">
-                    <div class="share-dropdown-header">Share PDF Invoice</div>
-                    <a class="share-option" onclick="sharePdfNative('{{ b.id }}', '{{ b.bill_number or ('LSJ-' ~ b.id) }}', '{{ b.customer_name }}')">
+                    <div class="share-dropdown-header">Other Share Options</div>
+                    <a class="share-option" onclick="sharePdfNative('{{ b.id }}', '{{ b.bill_number or ("LSJ-" ~ b.id) }}', '{{ b.customer_name }}')">
                       <span class="share-icon whatsapp"><span class="material-symbols-outlined" style="font-size:16px;">share</span></span>
-                      Share PDF Direct (WhatsApp/Apps)
+                      Share PDF Direct (Other Apps)
                     </a>
-                    <a class="share-option" onclick="shareEmailServer('{{ b.id }}', '{{ b.customer_name }}', '{{ b.bill_number or ('LSJ-' ~ b.id) }}')">
+                    <a class="share-option" onclick="shareEmailServer('{{ b.id }}', '{{ b.customer_name }}', '{{ b.bill_number or ("LSJ-" ~ b.id) }}')">
                       <span class="share-icon email"><span class="material-symbols-outlined" style="font-size:16px;">mail</span></span>
                       Email PDF (Direct SMTP)
                     </a>
-                    <a class="share-option" href="/bill/{{ b.id }}/pdf" download="Invoice_{{ b.bill_number or ('LSJ-' ~ b.id) }}.pdf">
+                    <a class="share-option" href="/bill/{{ b.id }}/pdf" download="Invoice_{{ b.bill_number or ("LSJ-" ~ b.id) }}.pdf">
                       <span class="share-icon sms"><span class="material-symbols-outlined" style="font-size:16px;">download</span></span>
                       Download PDF File
                     </a>
@@ -166,6 +169,34 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
   }
 });
+
+function formatPhoneForWhatsApp(phone) {
+  // Remove all non-digit characters
+  let digits = phone.replace(/[^\d]/g, '');
+  // If it starts with 0, remove leading 0 and add India country code
+  if (digits.startsWith('0')) {
+    digits = '91' + digits.substring(1);
+  }
+  // If it's 10 digits (Indian number without country code), add 91
+  if (digits.length === 10) {
+    digits = '91' + digits;
+  }
+  return digits;
+}
+
+function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
+  closeAllDropdowns();
+  
+  const waPhone = formatPhoneForWhatsApp(customerPhone);
+  const formattedTotal = parseFloat(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pdfUrl = window.location.origin + '/bill/' + billId + '/pdf';
+  
+  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${pdfUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
+  
+  const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+  window.open(waUrl, '_blank');
+  showToast('Opening WhatsApp...');
+}
 
 function getBillPdfUrl(billId) {
   return window.location.origin + '/bill/' + billId + '/pdf';

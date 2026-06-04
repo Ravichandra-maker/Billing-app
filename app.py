@@ -997,17 +997,16 @@ def generate_bill_pdf_bytes(bill):
     
     if os.path.exists(sig_img_path):
         # Insert transparent clean signature image - sized to match the signature line width
-        sig_img = Image(sig_img_path, width=45*mm, height=16*mm)
+        sig_img = Image(sig_img_path, width=45*mm, height=12*mm)
         sig_img.hAlign = 'RIGHT'
         
         sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
                                          fontSize=6.5, textColor=colors.HexColor('#333333'),
                                          alignment=TA_RIGHT, fontName='Helvetica-Bold')
         
-        right_column_flowables.append(Spacer(1, 2*mm))
-        right_column_flowables.append(sig_img)
         right_column_flowables.append(Spacer(1, 1*mm))
-        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
+        right_column_flowables.append(sig_img)
+        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceBefore=0.5, spaceAfter=0.5))
         right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
     else:
         sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],

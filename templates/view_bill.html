@@ -265,14 +265,17 @@
     display: block;
     width: 100%; /* Fill the entire signature box width */
     height: auto; /* Maintain aspect ratio */
-    margin: 0 auto 3px auto;
+    margin: 0 auto;
+    margin-bottom: -23px; /* Finetuned negative margin for precise gap */
     mix-blend-mode: multiply;
+    /* Clip the bottom whitespace of the PNG */
+    clip-path: inset(0 0 28% 0);
   }
 
   .signature-box .sig-line {
     border-top: 1.2px solid #000;
     width: 100%;
-    margin-bottom: 3px;
+    margin-bottom: 1px;
   }
 
   .signature-box p {
@@ -461,25 +464,29 @@
 </style>
 
 <div class="no-print responsive-flex-header" style="align-items:center; border-bottom:none; padding-bottom:0; margin-bottom:32px;">
-  <h2 class="headline-lg">Invoice <span class="serif-italic">{{ bill.bill_number or ('LSJ-' ~ bill.id) }}</span></h2>
+  <h2 class="headline-lg">Invoice <span class="serif-italic">{{ bill.bill_number or ("LSJ-" ~ bill.id) }}</span></h2>
   <div style="display:flex;gap:12px;align-items:center;">
     <a href="/bills" class="btn">← All Bills</a>
     
+    <button type="button" class="btn btn-outline" style="background-color: #25D366; color: white; border: none; display: flex; align-items: center; gap: 6px;" onclick="shareViaWhatsApp('{{ bill.id }}', '{{ bill.bill_number or ("LSJ-" ~ bill.id) }}', '{{ bill.customer_name }}', '{{ bill.phone }}', '{{ bill.total }}')">
+      <span class="material-symbols-outlined" style="font-size:16px;">chat</span> WhatsApp Share
+    </button>
+    
     <div class="share-wrapper" style="position:relative; display:inline-block;">
       <button type="button" class="btn btn-outline btn-share" onclick="toggleShareDropdown(this, event)">
-        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">share</span> Share
+        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;">share</span> More
       </button>
       <div class="share-dropdown" id="share-dropdown-{{ bill.id }}" style="top:calc(100% + 8px); right:0; min-width: 250px;">
-        <div class="share-dropdown-header">Share PDF Invoice</div>
-        <a class="share-option" onclick="sharePdfNative('{{ bill.id }}', '{{ bill.bill_number or ('LSJ-' ~ bill.id) }}', '{{ bill.customer_name }}')">
+        <div class="share-dropdown-header">Other Share Options</div>
+        <a class="share-option" onclick="sharePdfNative('{{ bill.id }}', '{{ bill.bill_number or ("LSJ-" ~ bill.id) }}', '{{ bill.customer_name }}')">
           <span class="share-icon whatsapp"><span class="material-symbols-outlined" style="font-size:16px;">share</span></span>
-          Share PDF Direct (WhatsApp/Apps)
+          Share PDF Direct (Other Apps)
         </a>
-        <a class="share-option" onclick="shareEmailServer('{{ bill.id }}', '{{ bill.customer_name }}', '{{ bill.bill_number or ('LSJ-' ~ bill.id) }}')">
+        <a class="share-option" onclick="shareEmailServer('{{ bill.id }}', '{{ bill.customer_name }}', '{{ bill.bill_number or ("LSJ-" ~ bill.id) }}')">
           <span class="share-icon email"><span class="material-symbols-outlined" style="font-size:16px;">mail</span></span>
           Email PDF (Direct SMTP)
         </a>
-        <a class="share-option" href="/bill/{{ bill.id }}/pdf" download="Invoice_{{ bill.bill_number or ('LSJ-' ~ bill.id) }}.pdf">
+        <a class="share-option" href="/bill/{{ bill.id }}/pdf" download="Invoice_{{ bill.bill_number or ("LSJ-" ~ bill.id) }}.pdf">
           <span class="share-icon sms"><span class="material-symbols-outlined" style="font-size:16px;">download</span></span>
           Download PDF File
         </a>
@@ -511,7 +518,7 @@
     </div>
     <div class="invoice-meta">
       <div class="tax-invoice-badge">TAX INVOICE</div>
-      <div class="invoice-meta-row"><strong>INVOICE:</strong> {{ bill.bill_number or ('LSJ-' ~ bill.id) }}</div>
+      <div class="invoice-meta-row"><strong>INVOICE:</strong> {{ bill.bill_number or ("LSJ-" ~ bill.id) }}</div>
       <div class="invoice-meta-row"><strong>DATE:</strong> {{ bill.date }}</div>
     </div>
   </div>
@@ -727,6 +734,44 @@ function toggleShareDropdown(btn, event) {
   event.stopPropagation();
   const dropdown = btn.nextElementSibling;
   dropdown.classList.toggle('active');
+}
+
+function formatPhoneForWhatsApp(phone) {
+  // Remove all non-digit characters
+  let digits = phone.replace(/[^\d]/g, '');
+  // If it starts with 0, remove leading 0 and add India country code
+  if (digits.startsWith('0')) {
+    digits = '91' + digits.substring(1);
+  }
+  // If it's 10 digits (Indian number without country code), add 91
+  if (digits.length === 10) {
+    digits = '91' + digits;
+  }
+  return digits;
+}
+
+function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
+  closeAllDropdowns();
+  
+  // Format the phone number for WhatsApp
+  const waPhone = formatPhoneForWhatsApp(customerPhone);
+  
+  // Format total amount with commas
+  const formattedTotal = parseFloat(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
+  // Build the PDF download link
+  const pdfUrl = window.location.origin + '/bill/' + billId + '/pdf';
+  
+  // Compose the auto-greeting message
+  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${pdfUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
+  
+  // Open WhatsApp with the customer's number and pre-filled message
+  const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+  
+  // Open in new tab/window — this will redirect to WhatsApp app or web
+  window.open(waUrl, '_blank');
+  
+  showToast('Opening WhatsApp...');
 }
 
 // Close dropdowns when clicking outside

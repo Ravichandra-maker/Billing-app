@@ -161,7 +161,7 @@
         <tbody>
           {% for b in bills[:10] %}
           <tr>
-            <td class="font-bold">{{ b.bill_number or ('LSJ-' ~ b.id) }}</td>
+            <td class="font-bold">{{ b.bill_number or ("LSJ-" ~ b.id) }}</td>
             <td>{{ b.date }}<br><span style="font-size:11px;opacity:0.5;text-transform:uppercase;">{{ b.day_name
                 }}</span></td>
             <td>{{ b.customer_name }}<br><span style="font-size:11px;opacity:0.5;">{{ b.phone }}</span></td>
