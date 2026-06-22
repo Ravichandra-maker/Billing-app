@@ -10,12 +10,11 @@
   /* Base portrait size constraints: 200mm wide x 150mm tall */
   .invoice-container {
     width: 200mm;
-    height: 150mm;
     min-height: 150mm;
-    max-height: 150mm;
+    height: auto;
     padding: 5mm 10mm 4mm 10mm;
     box-sizing: border-box;
-    overflow: hidden;
+    /* overflow: hidden; */
     background: #ffffff !important;
     color: #111111 !important;
     border: 1.5px solid #c5a96e; /* Elegant gold border */
@@ -261,21 +260,11 @@
     padding-top: 4px;
   }
 
-  .signature-box .sig-img {
-    display: block;
-    width: 100%; /* Fill the entire signature box width */
-    height: auto; /* Maintain aspect ratio */
-    margin: 0 auto;
-    margin-bottom: -23px; /* Finetuned negative margin for precise gap */
-    mix-blend-mode: multiply;
-    /* Clip the bottom whitespace of the PNG */
-    clip-path: inset(0 0 28% 0);
-  }
-
   .signature-box .sig-line {
     border-top: 1.2px solid #000;
     width: 100%;
     margin-bottom: 1px;
+    margin-top: 30px; /* Spacer for physical signature */
   }
 
   .signature-box p {
@@ -454,11 +443,11 @@
       margin: 0 !important;
       border-radius: 0 !important;
       width: 200mm !important;
-      height: 150mm !important;
+      height: auto !important;
       min-height: 150mm !important;
-      max-height: 150mm !important;
       padding: 8mm 10mm !important;
       box-sizing: border-box !important;
+      page-break-inside: avoid;
     }
   }
 </style>
@@ -702,7 +691,6 @@
       </div>
 
       <div class="signature-box">
-        <img src="/static/signature_clean.png" alt="Signature" class="sig-img">
         <div class="sig-line"></div>
         <p>Authorized Signature</p>
       </div>

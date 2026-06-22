@@ -855,7 +855,16 @@ def open_browser():
 def generate_bill_pdf_bytes(bill):
     """Generate and return invoice PDF bytes for a bill"""
     buf = io.BytesIO()
-    page_w, page_h = 200 * mm, 150 * mm
+    
+    # Calculate dynamic height based on number of items to prevent overlap
+    bill_items_list = bill.items if bill.items else [bill]
+    item_count = len(bill_items_list)
+    base_height_mm = 150
+    # Add roughly 8mm per item beyond the first 2
+    extra_height_mm = max(0, (item_count - 2) * 8)
+    page_w = 200 * mm
+    page_h = (base_height_mm + extra_height_mm) * mm
+    
     doc = SimpleDocTemplate(buf, pagesize=(page_w, page_h),
                             leftMargin=10*mm, rightMargin=10*mm,
                             topMargin=8*mm, bottomMargin=6*mm)
@@ -1030,30 +1039,14 @@ def generate_bill_pdf_bytes(bill):
     totals_tbl.setStyle(TableStyle(totals_style))
     
     # Combine payment info + totals/signature in two columns
-    sig_img_path = 'static/signature_clean.png'
     right_column_flowables = [totals_tbl]
     
-    if os.path.exists(sig_img_path):
-        # Insert transparent clean signature image - sized to match the signature line width
-        sig_img = Image(sig_img_path, width=45*mm, height=12*mm)
-        sig_img.hAlign = 'RIGHT'
-        
-        sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
-                                         fontSize=6.5, textColor=colors.HexColor('#333333'),
-                                         alignment=TA_RIGHT, fontName=f_bold)
-        
-        right_column_flowables.append(Spacer(1, 1*mm))
-        right_column_flowables.append(sig_img)
-        # Negative spaceBefore (-10) pulls the line up, matching the HTML layout where we overlapped the line
-        right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceBefore=-10, spaceAfter=0.5))
-        right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
-    else:
-        sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
-                                         fontSize=6.5, textColor=colors.HexColor('#333333'),
-                                         alignment=TA_RIGHT, fontName=f_bold)
-        right_column_flowables.append(Spacer(1, 8*mm))
-        right_column_flowables.append(HRFlowable(width='80', thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
-        right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
+    sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
+                                     fontSize=6.5, textColor=colors.HexColor('#333333'),
+                                     alignment=TA_RIGHT, fontName=f_bold)
+    right_column_flowables.append(Spacer(1, 12*mm))
+    right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
+    right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
  
     bottom_data = [[
         Paragraph(payment_text, style_normal),
@@ -1079,7 +1072,9 @@ def generate_bill_pdf_bytes(bill):
         canvas.setStrokeColor(colors.HexColor('#c5a96e'))
         canvas.setLineWidth(1.5)
         # Margin outlines (slightly inset from page edges)
-        canvas.rect(4*mm, 4*mm, 192*mm, 142*mm, fill=0, stroke=1)
+        rect_width = doc.pagesize[0] - 8*mm
+        rect_height = doc.pagesize[1] - 8*mm
+        canvas.rect(4*mm, 4*mm, rect_width, rect_height, fill=0, stroke=1)
         
         # Watermark "LSJ"
         canvas.setFont('Times-Bold', 85)
@@ -1087,7 +1082,7 @@ def generate_bill_pdf_bytes(bill):
         
         # Rotate and draw watermark
         canvas.saveState()
-        canvas.translate(100*mm, 75*mm)
+        canvas.translate(doc.pagesize[0] / 2, doc.pagesize[1] / 2)
         canvas.rotate(-15)
         canvas.drawCentredString(0, -10*mm, 'LSJ')
         canvas.restoreState()
