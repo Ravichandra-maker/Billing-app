@@ -68,7 +68,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"DATABASE INITIALIZATION ERROR: {str(e)}")
+        
     # Check if total_weight column exists in inventory_item table, if not add it
     try:
         from sqlalchemy import text
