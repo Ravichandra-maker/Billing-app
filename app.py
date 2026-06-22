@@ -44,6 +44,22 @@ if platform.system() == 'Windows':
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'lakshmi_srinivasa_jewellery_2026')
 
+@app.errorhandler(500)
+def internal_server_error(e):
+    return """
+    <h1>Database Connection Error</h1>
+    <p>Your application is running, but it cannot connect to the database.</p>
+    <p><b>Why is this happening?</b> Your Vercel Environment Variables still have a <code>DATABASE_URL</code> pointing to your old Supabase database, which is currently paused or inactive.</p>
+    <p><b>How to fix it:</b></p>
+    <ol>
+        <li>Go to your <b>Vercel Dashboard</b> -> Project Settings -> <b>Environment Variables</b>.</li>
+        <li>Find <code>DATABASE_URL</code>.</li>
+        <li><b>Option A (Recommended):</b> Update it with a working PostgreSQL connection string (unpause your Supabase).</li>
+        <li><b>Option B (For testing only):</b> Delete the <code>DATABASE_URL</code> variable entirely to forcefully use a temporary SQLite database.</li>
+    </ol>
+    <p>After doing this, Redeploy your app in Vercel.</p>
+    """, 500
+
 # Database configuration
 
 database_url = os.getenv('DATABASE_URL')
