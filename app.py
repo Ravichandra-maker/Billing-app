@@ -53,10 +53,14 @@ if database_url:
         database_url = database_url.replace("postgres://", "postgresql://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    DATA_DIR = os.path.join(basedir, "databases")
-    os.makedirs(DATA_DIR, exist_ok=True)
-    db_path = os.path.join(DATA_DIR, "billing.db")
+    if os.getenv('VERCEL'):
+        # Vercel serverless functions have a read-only filesystem except for /tmp
+        db_path = '/tmp/billing.db'
+    else:
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        DATA_DIR = os.path.join(basedir, "databases")
+        os.makedirs(DATA_DIR, exist_ok=True)
+        db_path = os.path.join(DATA_DIR, "billing.db")
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
