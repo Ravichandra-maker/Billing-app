@@ -886,7 +886,7 @@ def generate_bill_pdf_bytes(bill):
     base_height_mm = 150
     # Add roughly 8mm per item beyond the first 2
     extra_height_mm = max(0, (item_count - 2) * 8)
-    page_w = 200 * mm
+    page_w = 210 * mm
     page_h = (base_height_mm + extra_height_mm) * mm
     
     doc = SimpleDocTemplate(buf, pagesize=(page_w, page_h),
@@ -898,8 +898,8 @@ def generate_bill_pdf_bytes(bill):
     f_bold = 'Arial-Bold' if font_registered else 'Helvetica-Bold'
     f_italic = 'Arial-Italic' if font_registered else 'Helvetica-Oblique'
     
-    # Helper for currency symbol
-    cur_sym = '₹' if font_registered else 'Rs.'
+    # Always use Rs. for PDF (avoids encoding issues)
+    cur_sym = 'Rs.'
     
     def fmt_currency(val):
         return f'{cur_sym}{val:,.2f}'
@@ -909,7 +909,7 @@ def generate_bill_pdf_bytes(bill):
     # Custom styles matching HTML
     style_title = ParagraphStyle('InvTitle', parent=styles['Heading1'],
                                   fontSize=14, textColor=colors.HexColor('#000000'),
-                                  alignment=TA_LEFT, spaceAfter=2, fontName='Times-Bold') # Serif font like Cinzel
+                                  alignment=TA_LEFT, spaceAfter=2, fontName='Times-Bold')
     style_subtitle = ParagraphStyle('InvSub', parent=styles['Normal'],
                                      fontSize=8, textColor=colors.HexColor('#444444'),
                                      alignment=TA_LEFT, spaceAfter=4, fontName=f_body)
@@ -931,16 +931,36 @@ def generate_bill_pdf_bytes(bill):
     elements = []
     gold_color = colors.HexColor('#c5a96e')
     
-    # -- Header table (brand left, meta right) --
+    # -- Header table (logo + brand left, meta right) --
+    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo.png')
+    brand_para = Paragraph(
+        '<b>Laxmi Srinivasa Jewellery</b><br/>'
+        '<font size="7" color="#444">Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</font><br/>'
+        '<font size="7" color="#444">Ph: 9951050648, 9110740648</font>',
+        style_title
+    )
+    if os.path.exists(logo_path):
+        logo_img = Image(logo_path, width=14*mm, height=14*mm)
+        brand_cell = Table([[logo_img, brand_para]], colWidths=[16*mm, 88*mm])
+        brand_cell.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (0, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+    else:
+        brand_cell = brand_para
+
     header_data = [[
-        Paragraph('<b>Laxmi Srinivasa Jewellery</b><br/><font size="7" color="#444">Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</font>', style_title),
-        Paragraph(f'<font size="8" color="#8b6914"><b>TAX INVOICE</b></font><br/>'
+        brand_cell,
+        Paragraph(f'<font size="9" color="#c5a96e"><b>TAX INVOICE</b></font><br/>'
                   f'<font size="9"><b>Invoice:</b> {bill.bill_number or "LSJ-" + str(bill.id)}</font><br/>'
                   f'<font size="9"><b>Date:</b> {bill.date}</font>', style_meta)
     ]]
-    header_tbl = Table(header_data, colWidths=[105*mm, 75*mm])
+    header_tbl = Table(header_data, colWidths=[108*mm, 82*mm])
     header_tbl.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LINEBELOW', (0, 0), (-1, 0), 1.5, gold_color),
     ]))
     elements.append(header_tbl)
@@ -1101,8 +1121,8 @@ def generate_bill_pdf_bytes(bill):
         canvas.rect(4*mm, 4*mm, rect_width, rect_height, fill=0, stroke=1)
         
         # Watermark "LSJ"
-        canvas.setFont('Times-Bold', 85)
-        canvas.setFillColor(colors.HexColor('#000000'), alpha=0.035)
+        canvas.setFont('Times-Bold', 130)
+        canvas.setFillColor(colors.HexColor('#000000'), alpha=0.08)
         
         # Rotate and draw watermark
         canvas.saveState()
