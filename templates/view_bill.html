@@ -57,7 +57,7 @@
   .invoice-brand {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     gap: 10px;
   }
 
@@ -498,8 +498,8 @@
   <!-- Invoice Header (Logo left, Info right) -->
   <div class="invoice-header">
     <div class="invoice-brand">
-      <img src="/static/logo.png" class="big-logo" alt="Logo" style="height:55px; width:auto; display:block;">
-      <div style="display:flex; flex-direction:column; justify-content:center;">
+      <img src="/static/logo.png" class="big-logo" alt="Logo" style="width:auto; height:100%; object-fit:contain; display:block;">
+      <div style="display:flex; flex-direction:column; justify-content:space-between;">
         <h1>Laxmi Srinivasa Jewellery</h1>
         <p>Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</p>
         <p>Ph: 9951050648, 9110740648</p>
