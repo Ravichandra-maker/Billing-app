@@ -7,10 +7,10 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
 
-  /* Base portrait size constraints: 200mm wide x 150mm tall */
+  /* Half A4 (A5) Landscape size constraints: 210mm wide x 148mm tall */
   .invoice-container {
-    width: 200mm;
-    min-height: 150mm;
+    width: 210mm;
+    min-height: 148mm;
     height: auto;
     padding: 5mm 10mm 4mm 10mm;
     box-sizing: border-box;
@@ -33,10 +33,10 @@
     top: 52%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(-15deg);
-    font-size: 85px;
+    font-size: 130px;
     font-weight: 800;
     color: #000;
-    opacity: 0.035; /* Extremely subtle and faint */
+    opacity: 0.08; /* Darker */
     letter-spacing: 12px;
     pointer-events: none;
     z-index: 0;
@@ -409,7 +409,7 @@
   /* Print Styles */
   @media print {
     @page {
-      size: 200mm 150mm; /* Landscape page print size */
+      size: 210mm 148mm; /* Half A4 (A5) Landscape page print size */
       margin: 0;
     }
 
@@ -442,12 +442,13 @@
       box-shadow: none !important;
       margin: 0 !important;
       border-radius: 0 !important;
-      width: 200mm !important;
-      height: auto !important;
-      min-height: 150mm !important;
+      width: 210mm !important;
+      height: 148mm !important;
+      min-height: 148mm !important;
       padding: 8mm 10mm !important;
       box-sizing: border-box !important;
       page-break-inside: avoid;
+      overflow: hidden !important;
     }
   }
 </style>
