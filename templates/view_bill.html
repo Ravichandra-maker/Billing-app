@@ -48,40 +48,36 @@
   .invoice-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px double #c5a96e; /* Luxurious double line border */
-    padding-bottom: 6px;
-    margin-bottom: 6px;
+    align-items: flex-end;
+    border-bottom: 1.5px solid #c5a96e;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
   }
 
   .invoice-brand {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 
-  .invoice-brand img.big-logo {
-    height: 60px; /* Reduced from 75px for more space */
-    width: auto;
-    margin: 0;
-  }
+  
 
   .invoice-brand h1 {
-    font-size: 17px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
     margin: 0;
     color: #000;
     letter-spacing: 0.5px;
-    font-family: 'Cinzel', serif; /* Elegant branding header */
+    font-family: 'Cinzel', serif;
   }
 
   .invoice-brand p {
-    font-size: 9.5px;
-    color: #444;
+    font-size: 10px;
+    color: #000;
     margin: 2px 0 0 0;
     line-height: 1.2;
-    font-weight: 600;
+    font-weight: 700;
   }
 
   .invoice-meta {
@@ -89,17 +85,15 @@
   }
 
   .tax-invoice-badge {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
-    color: #8b6914;
-    background: #faf7f2;
-    border: 1px solid #e5d5b7;
-    padding: 1px 6px;
-    border-radius: 2px;
-    display: inline-block;
-    letter-spacing: 0.05em;
+    color: #c5a96e;
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: block;
     margin-bottom: 4px;
-    text-transform: uppercase;
+    text-align: right;
   }
 
   .invoice-meta-row {
@@ -151,18 +145,19 @@
   }
 
   .invoice-table-wrapper th {
-    background: #faf7f2;
+    background: transparent;
     color: #333;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    padding: 4px 6px;
-    border: 1.5px solid #c5a96e;
+    padding: 6px;
+    border-top: 1.5px solid #c5a96e;
+    border-bottom: 1.5px solid #c5a96e;
+    border-left: none;
+    border-right: none;
   }
 
   .invoice-table-wrapper td {
-    padding: 4px 6px;
-    border: 1px solid #ddd;
+    padding: 6px;
+    border: none;
     color: #111;
     font-weight: 500;
   }
@@ -302,13 +297,16 @@
 
   .totals-row.grand-total-row {
     border-top: 1.5px solid #c5a96e;
+    border-bottom: 1.5px solid #c5a96e;
     padding: 4px 6px;
     margin-top: 3px;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 800;
     color: #000;
-    background: #faf7f2;
-    border: 1px solid #c5a96e;
+    background: transparent;
+    border-left: none;
+    border-right: none;
+    text-transform: uppercase;
   }
 
   .text-success {
@@ -500,7 +498,7 @@
   <!-- Invoice Header (Logo left, Info right) -->
   <div class="invoice-header">
     <div class="invoice-brand">
-      <img src="/static/logo.png" class="big-logo" alt="Logo">
+      
       <div>
         <h1>Laxmi Srinivasa Jewellery</h1>
         <p>Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</p>
@@ -514,9 +512,9 @@
   </div>
 
   <!-- Full-width customer details row -->
-  <div class="bill-to-row">
-    <h3>BILL TO:</h3>
-    <p>
+  <div class="bill-to-row" style="border-bottom: 1.5px solid #e5d5b7; padding-bottom: 6px; margin-bottom: 10px;">
+    <p style="font-size: 11px;">
+      <span style="color: #c5a96e; font-weight: 700;">BILL TO:</span> 
       <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %} | Ph: {{ bill.phone }}
     </p>
   </div>
@@ -548,8 +546,8 @@
             <td class="text-right">{{ "%.3f"|format(item.gross_weight or item.grams) }}g</td>
             <td class="text-right">{{ "%.3f"|format(item.stone_weight or 0) }}g</td>
             <td class="text-right font-bold">{{ "%.3f"|format(item.net_weight or item.grams) }}g</td>
-            <td class="text-right">₹{{ "{:,.2f}".format(item.item_rate) }}</td>
-            <td class="text-right font-bold">₹{{ "{:,.2f}".format((item.net_weight or item.grams) * item.item_rate) }}</td>
+            <td class="text-right">Rs.{{ "{:,.2f}".format(item.item_rate) }}</td>
+            <td class="text-right font-bold">Rs.{{ "{:,.2f}".format((item.net_weight or item.grams) * item.item_rate) }}</td>
           </tr>
           {% endfor %}
         {% else %}
@@ -561,8 +559,8 @@
             <td class="text-right">{{ "%.3f"|format(bill.gross_weight or bill.grams) }}g</td>
             <td class="text-right">{{ "%.3f"|format(bill.stone_weight or 0) }}g</td>
             <td class="text-right font-bold">{{ "%.3f"|format(bill.net_weight or bill.grams) }}g</td>
-            <td class="text-right">₹{{ "{:,.2f}".format(bill.item_rate) }}</td>
-            <td class="text-right font-bold">₹{{ "{:,.2f}".format((bill.net_weight or bill.grams) * bill.item_rate) }}</td>
+            <td class="text-right">Rs.{{ "{:,.2f}".format(bill.item_rate) }}</td>
+            <td class="text-right font-bold">Rs.{{ "{:,.2f}".format((bill.net_weight or bill.grams) * bill.item_rate) }}</td>
           </tr>
         {% endif %}
       </tbody>
@@ -624,69 +622,69 @@
 
         <div class="totals-row">
           <span>Total Metal Value</span>
-          <span>₹{{ "{:,.2f}".format(ns.total_metal) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(ns.total_metal) }}</span>
         </div>
         <div class="totals-row">
           <span>Total Making Charges</span>
-          <span>₹{{ "{:,.2f}".format(ns.total_making) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(ns.total_making) }}</span>
         </div>
         <div class="totals-row">
           <span>Total Wastage</span>
-          <span>₹{{ "{:,.2f}".format(ns.total_wastage) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(ns.total_wastage) }}</span>
         </div>
         {% if bill.stone_charge %}
         <div class="totals-row">
           <span>Stone/Setting Charge</span>
-          <span>₹{{ "{:,.2f}".format(bill.stone_charge) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.stone_charge) }}</span>
         </div>
         {% endif %}
         {% if bill.hallmark_charge %}
         <div class="totals-row">
           <span>Hallmark Charge</span>
-          <span>₹{{ "{:,.2f}".format(bill.hallmark_charge) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.hallmark_charge) }}</span>
         </div>
         {% endif %}
         
         <div class="totals-row subtotal-row">
           <span>Subtotal</span>
-          <span>₹{{ "{:,.2f}".format(bill.subtotal or bill.total) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.subtotal or bill.total) }}</span>
         </div>
         <div class="totals-row">
           <span>CGST (1.5%)</span>
-          <span>₹{{ "{:,.2f}".format(bill.cgst or 0) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.cgst or 0) }}</span>
         </div>
         <div class="totals-row">
           <span>SGST (1.5%)</span>
-          <span>₹{{ "{:,.2f}".format(bill.sgst or 0) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.sgst or 0) }}</span>
         </div>
         
         {% if bill.discount %}
         <div class="totals-row text-success">
           <span>Discount</span>
-          <span>-₹{{ "{:,.2f}".format(bill.discount) }}</span>
+          <span>-Rs.{{ "{:,.2f}".format(bill.discount) }}</span>
         </div>
         {% endif %}
         
         {% if bill.old_item_value %}
         <div class="totals-row text-success">
           <span>Exchange ({{ bill.old_item_type|upper }})</span>
-          <span>-₹{{ "{:,.2f}".format(bill.old_item_value) }}</span>
+          <span>-Rs.{{ "{:,.2f}".format(bill.old_item_value) }}</span>
         </div>
         {% endif %}
         
         <div class="totals-row grand-total-row">
           <span>Grand Total</span>
-          <span>₹{{ "{:,.2f}".format(bill.total) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.total) }}</span>
         </div>
         
         {% if bill.amount_paid and bill.amount_paid != bill.total %}
         <div class="totals-row">
           <span>Amount Paid</span>
-          <span>₹{{ "{:,.2f}".format(bill.amount_paid) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.amount_paid) }}</span>
         </div>
         <div class="totals-row text-error font-bold">
           <span>Balance Due</span>
-          <span>₹{{ "{:,.2f}".format(bill.balance) }}</span>
+          <span>Rs.{{ "{:,.2f}".format(bill.balance) }}</span>
         </div>
         {% endif %}
       </div>
