@@ -516,8 +516,7 @@
   <div class="bill-to-row" style="border-bottom: 1.5px solid #e5d5b7; padding-bottom: 8px; margin-bottom: 10px;">
     <div style="font-size:10px; font-weight:800; color:#c5a96e; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 4px;">Bill To:</div>
     <div style="font-size: 11px; font-weight:600; color:#111;">
-      <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %}
-      <br>Ph: {{ bill.phone }}
+      <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %} | Ph: {{ bill.phone }}
     </div>
   </div>
 
