@@ -497,19 +497,13 @@
 
   <!-- Invoice Header (Logo left, Info right) -->
   <div class="invoice-header">
-    <div class="invoice-brand">
-      <table style="border-collapse:collapse; border:none;">
-        <tr>
-          <td style="padding:0 10px 0 0; border:none; vertical-align:middle; width:52px;">
-            <img src="/static/logo.png" alt="Logo" style="width:50px; height:50px; object-fit:contain; display:block;">
-          </td>
-          <td style="padding:0; border:none; vertical-align:middle;">
-            <h1 style="margin:0 0 2px 0; font-size:18px; font-weight:800; font-family:'Cinzel',serif; letter-spacing:0.5px; color:#000; line-height:1.2;">Laxmi Srinivasa Jewellery</h1>
-            <p style="margin:0 0 1px 0; font-size:9px; font-weight:700; color:#000; line-height:1.3;">Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</p>
-            <p style="margin:0; font-size:9px; font-weight:700; color:#000; line-height:1.3;">Ph: 9951050648, 9110740648</p>
-          </td>
-        </tr>
-      </table>
+    <div class="invoice-brand" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
+      <img src="/static/logo.png" alt="Logo" style="height:60px; width:auto; object-fit:contain; display:block;">
+      <div style="display:flex; flex-direction:column; justify-content:center;">
+        <h1 style="margin:0 0 2px 0; font-size:18px; font-weight:800; font-family:'Cinzel',serif; letter-spacing:0.5px; color:#000; line-height:1.1;">Laxmi Srinivasa Jewellery</h1>
+        <p style="margin:0 0 1px 0; font-size:9.5px; font-weight:700; color:#000; line-height:1.2;">Annavaram - 533406 | GSTIN: 37CKJPK2161B1ZG</p>
+        <p style="margin:0; font-size:9.5px; font-weight:700; color:#000; line-height:1.2;">Ph: 9951050648, 9110740648</p>
+      </div>
     </div>
     <div class="invoice-meta">
       <div class="tax-invoice-badge">TAX INVOICE</div>
@@ -519,11 +513,12 @@
   </div>
 
   <!-- Full-width customer details row -->
-  <div class="bill-to-row" style="border-bottom: 1.5px solid #e5d5b7; padding-bottom: 6px; margin-bottom: 10px;">
-    <span style="font-size:9px; font-weight:700; color:#c5a96e; text-transform:uppercase; letter-spacing:0.05em;">Bill To:</span>
-    <p style="font-size: 11px; margin: 2px 0 0 0; font-weight:600; color:#111;">
-      <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %} | Ph: {{ bill.phone }}
-    </p>
+  <div class="bill-to-row" style="border-bottom: 1.5px solid #e5d5b7; padding-bottom: 8px; margin-bottom: 10px;">
+    <div style="font-size:10px; font-weight:800; color:#c5a96e; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 4px;">Bill To:</div>
+    <div style="font-size: 11px; font-weight:600; color:#111;">
+      <strong>{{ bill.customer_name }}</strong>{% if bill.address %}, {{ bill.address }}{% endif %}
+      <br>Ph: {{ bill.phone }}
+    </div>
   </div>
 
   <!-- Compact Table with Math Alignment -->
