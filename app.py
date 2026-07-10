@@ -1303,16 +1303,35 @@ def generate_bill_pdf_bytes(bill):
     
     # Combine payment info + totals/signature in two columns
     right_column_flowables = [totals_tbl]
-    
+
     sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
                                      fontSize=6.5, textColor=colors.HexColor('#333333'),
                                      alignment=TA_CENTER, fontName=f_bold)
-    right_column_flowables.append(Spacer(1, 15*mm))
-    
-    sig_tbl = Table([
-        [HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), spaceAfter=1)],
-        [Paragraph('AUTHORIZED SIGNATURE', sig_label_style)]
-    ], colWidths=[45*mm], hAlign='RIGHT')
+    right_column_flowables.append(Spacer(1, 4*mm))
+
+    # Use real signature image if available — sits directly on the line (no gap)
+    sig_img_path = os.path.join(os.path.dirname(__file__), 'static', 'signature_clean.png')
+    if os.path.exists(sig_img_path):
+        sig_img = Image(sig_img_path, width=42*mm, height=12*mm)
+        sig_tbl = Table([
+            [sig_img],
+            [HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'))],
+            [Paragraph('AUTHORIZED SIGNATURE', sig_label_style)]
+        ], colWidths=[45*mm], rowHeights=[12*mm, 2, None], hAlign='RIGHT')
+        sig_tbl.setStyle(TableStyle([
+            ('TOPPADDING',    (0, 0), (0, 0), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), -6),
+            ('TOPPADDING',    (0, 1), (0, 1), 0),
+            ('BOTTOMPADDING', (0, 1), (0, 1), 0),
+            ('TOPPADDING',    (0, 2), (0, 2), 2),
+            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ]))
+    else:
+        sig_tbl = Table([
+            [Spacer(1, 12*mm)],
+            [HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'))],
+            [Paragraph('AUTHORIZED SIGNATURE', sig_label_style)]
+        ], colWidths=[45*mm], hAlign='RIGHT')
     right_column_flowables.append(sig_tbl)
  
     bottom_data = [[
@@ -1346,15 +1365,14 @@ def generate_bill_pdf_bytes(bill):
         rect_height = doc.pagesize[1] - 8*mm
         canvas.rect(4*mm, 4*mm, rect_width, rect_height, fill=0, stroke=1)
         
-        # Watermark "LSJ"
-        canvas.setFont('Times-Bold', 130)
-        canvas.setFillColor(colors.HexColor('#000000'), alpha=0.08)
-        
-        # Rotate and draw watermark
+        # Watermark "LSJ" — matches HTML: centered, -15 deg tilt
+        canvas.setFont('Times-Bold', 120)
+        canvas.setFillColor(colors.HexColor('#000000'), alpha=0.07)
+
         canvas.saveState()
         canvas.translate(doc.pagesize[0] / 2, doc.pagesize[1] / 2)
         canvas.rotate(-15)
-        canvas.drawCentredString(0, -10*mm, 'LSJ')
+        canvas.drawCentredString(0, 0, 'LSJ')
         canvas.restoreState()
         
         canvas.restoreState()
