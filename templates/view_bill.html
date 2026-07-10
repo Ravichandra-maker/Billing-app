@@ -488,6 +488,14 @@
     <button onclick="window.print()" class="btn btn-primary" id="btn-print">
       <span class="material-symbols-outlined">print</span> Print Invoice
     </button>
+    <a href="/edit-bill/{{ bill.id }}" class="btn btn-outline" style="color: #8b6914; border-color: #8b6914;">
+      <span class="material-symbols-outlined" style="font-size:16px;">edit</span> Edit
+    </a>
+    {% if bill.status != 'Paid' and bill.balance > 0 %}
+    <button type="button" class="btn btn-primary" onclick="openPaymentModal()" style="background: #15803d; border-color: #15803d;">
+      <span class="material-symbols-outlined" style="font-size:16px;">payments</span> Receive Payment
+    </button>
+    {% endif %}
   </div>
 </div>
 
@@ -714,6 +722,26 @@
 
 <!-- Share Toast Notification -->
 <div class="share-toast" id="shareToast">Link copied to clipboard!</div>
+
+<!-- Payment Modal -->
+{% if bill.status != 'Paid' and bill.balance > 0 %}
+<div id="paymentModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background-color:rgba(0,0,0,0.4);">
+  <div class="modal-content" style="background-color:#fefefe; margin:15% auto; padding:20px; border:1px solid #888; width:80%; max-width:400px; border-radius:8px;">
+    <h3 style="margin-top:0; color:#8b6914;">Record Payment</h3>
+    <p style="margin-bottom: 15px;">Current Balance: <strong style="color:#b91c1c;">Rs.{{ "{:,.2f}".format(bill.balance) }}</strong></p>
+    <form action="/update-payment/{{ bill.id }}" method="POST">
+      <div style="margin-bottom:15px; text-align:left;">
+        <label for="payment_amount" style="display:block; margin-bottom:5px; font-weight:600;">Payment Amount Received (Rs):</label>
+        <input type="number" step="0.01" max="{{ bill.balance }}" id="payment_amount" name="payment_amount" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; font-size:16px;" value="{{ bill.balance }}">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: #15803d; border-color: #15803d;">Save Payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -738,7 +766,7 @@ function formatPhoneForWhatsApp(phone) {
   return digits;
 }
 
-function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
+async function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
   closeAllDropdowns();
   
   // Format the phone number for WhatsApp
@@ -750,8 +778,29 @@ function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, total
   // Build the PDF download link
   const pdfUrl = window.location.origin + '/bill/' + billId + '/pdf';
   
+  showToast('Generating secure link...');
+  
+  let finalUrl = pdfUrl;
+  try {
+      const response = await fetch('/api/shorten-url', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: pdfUrl })
+      });
+      if (response.ok) {
+          const data = await response.json();
+          if (data.short_url) {
+              finalUrl = data.short_url;
+          }
+      }
+  } catch (e) {
+      console.error("URL shortening failed", e);
+  }
+  
   // Compose the auto-greeting message
-  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${pdfUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
+  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${finalUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
   
   // Open WhatsApp with the customer's number and pre-filled message
   const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
@@ -855,25 +904,52 @@ async function shareEmailServer(billId, customer, billNumber) {
   }
 }
 
-function copyBillLink(billId) {
-  const pdfUrl = getBillPdfUrl(billId);
-  navigator.clipboard.writeText(pdfUrl).then(() => {
-    showToast("Link copied to clipboard!");
-  }).catch(() => {
-    // Fallback for older browsers
-    const input = document.createElement('input');
-    input.value = pdfUrl;
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('copy');
-    document.body.removeChild(input);
-    showToast("Link copied to clipboard!");
-  });
+async function copyBillLink(billId) {
   closeAllDropdowns();
+  const pdfUrl = getBillPdfUrl(billId);
+  showToast('Generating secure link...');
+  
+  let finalUrl = pdfUrl;
+  try {
+      const response = await fetch('/api/shorten-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pdfUrl })
+      });
+      if (response.ok) {
+          const data = await response.json();
+          if (data.short_url) {
+              finalUrl = data.short_url;
+          }
+      }
+  } catch (e) {
+      console.error("URL shortening failed", e);
+  }
+
+  try {
+      await navigator.clipboard.writeText(finalUrl);
+      showToast("Link copied to clipboard!");
+  } catch (err) {
+      const input = document.createElement('input');
+      input.value = finalUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      showToast("Link copied to clipboard!");
+  }
 }
 
 function closeAllDropdowns() {
   document.querySelectorAll('.share-dropdown.active').forEach(d => d.classList.remove('active'));
+}
+</script>
+<script>
+function openPaymentModal() {
+  document.getElementById('paymentModal').style.display = 'block';
+}
+function closePaymentModal() {
+  document.getElementById('paymentModal').style.display = 'none';
 }
 </script>
 {% endblock %}

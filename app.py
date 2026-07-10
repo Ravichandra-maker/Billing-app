@@ -599,6 +599,154 @@ def view_bill(bill_id):
     return render_template("view_bill.html", bill=bill)
 
 
+@app.route('/edit-bill/<int:bill_id>')
+def edit_bill(bill_id):
+    """Load edit form pre-filled with existing bill data"""
+    bill = Bill.query.get_or_404(bill_id)
+    metal_prices = fetch_live_metal_prices()
+    return render_template("edit_bill.html", bill=bill, metal_prices=metal_prices)
+
+
+@app.route('/save-edit-bill/<int:bill_id>', methods=['POST'])
+def save_edit_bill(bill_id):
+    """Save edits to an existing bill"""
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+        form = request.form
+
+        item_types = form.getlist('item_type[]')
+        purities = form.getlist('purity[]')
+        item_names = form.getlist('item_name[]')
+        inventory_item_ids = form.getlist('inventory_item_id[]')
+        gross_weights = [float(x or 0) for x in form.getlist('gross_weight[]')]
+        stone_weights = [float(x or 0) for x in form.getlist('stone_weight[]')]
+        making_charges = [float(x or 0) for x in form.getlist('making_charge[]')]
+        making_charge_types = form.getlist('making_charge_type[]')
+        wastage_percents = [float(x or 0) for x in form.getlist('wastage_percent[]')]
+        item_rates = [float(x or 0) for x in form.getlist('item_rate[]')]
+        stone_charges = [float(x or 0) for x in form.getlist('stone_charge[]')]
+        hallmark_charges = [float(x or 0) for x in form.getlist('hallmark_charge[]')]
+        grams_arr = [float(x or 0) for x in form.getlist('grams[]')]
+
+        discount = float(form.get('discount', 0) or 0)
+        old_item_purity = form.get('old_item_purity', '')
+        old_item_grams = float(form.get('old_item_grams', 0) or 0)
+        old_item_rate = float(form.get('old_item_rate', 0) or 0)
+        old_mult = get_purity_multiplier(old_item_purity)
+        old_item_value = round(old_item_grams * old_item_rate * old_mult, 2)
+        amount_paid = float(form.get('amount_paid', 0) or 0)
+
+        # Remove old bill items
+        for bi in list(bill.items):
+            db.session.delete(bi)
+
+        total_subtotal = 0
+        total_stone = 0
+        total_hallmark = 0
+        bill_items = []
+
+        for i in range(len(item_types)):
+            gw = gross_weights[i] if i < len(gross_weights) else 0
+            sw = stone_weights[i] if i < len(stone_weights) else 0
+            g = grams_arr[i] if i < len(grams_arr) else 0
+            rate = item_rates[i] if i < len(item_rates) else 0
+            making = making_charges[i] if i < len(making_charges) else 0
+            making_type = making_charge_types[i] if i < len(making_charge_types) else 'per_gram'
+            wastage = wastage_percents[i] if i < len(wastage_percents) else 0
+            stone_charge = stone_charges[i] if i < len(stone_charges) else 0
+            hallmark_charge = hallmark_charges[i] if i < len(hallmark_charges) else 0
+
+            nw = gw - sw if gw > 0 else g
+            if nw <= 0 and gw <= 0 and g <= 0:
+                continue
+
+            if making_type == 'per_gram':
+                making_amt = nw * making
+            elif making_type == 'percentage':
+                making_amt = (making / 100) * rate * nw
+            else:
+                making_amt = making
+
+            wastage_amt = (wastage / 100) * rate * nw
+            metal_value = nw * rate
+            item_subtotal = metal_value + making_amt + wastage_amt + stone_charge + hallmark_charge
+            total_stone += stone_charge
+            total_hallmark += hallmark_charge
+            total_subtotal += item_subtotal
+
+            b_item = BillItem(
+                item_type=item_types[i],
+                item_name=item_names[i] if i < len(item_names) else '',
+                purity=purities[i] if i < len(purities) else '',
+                gross_weight=gw, stone_weight=sw, net_weight=nw,
+                grams=g if g > 0 else nw,
+                making_charge=making, making_charge_type=making_type,
+                wastage_percent=wastage, item_rate=rate,
+                stone_charge=stone_charge, hallmark_charge=hallmark_charge,
+                item_amount=item_subtotal
+            )
+            bill_items.append(b_item)
+
+        cgst = round(total_subtotal * 0.015, 2)
+        sgst = round(total_subtotal * 0.015, 2)
+        total_before_discount = total_subtotal + cgst + sgst
+        total = round(max(total_before_discount - discount - old_item_value, 0), 2)
+        balance = round(max(total - amount_paid, 0), 2)
+
+        if balance <= 0:
+            status = 'Paid'; balance = 0
+        elif amount_paid > 0:
+            status = 'Partial'
+        else:
+            status = 'Pending'
+
+        # Update bill fields
+        bill.customer_name = form.get('customer_name', bill.customer_name)
+        bill.phone = form.get('phone', bill.phone)
+        bill.address = form.get('address', bill.address)
+        bill.city = form.get('city', bill.city)
+        bill.gst_number = form.get('gst_number', bill.gst_number)
+        bill.payment_mode = form.get('payment_mode', bill.payment_mode)
+        bill.notes = form.get('notes', bill.notes)
+        bill.old_item_type = form.get('old_item_type', '')
+        bill.old_item_name = form.get('old_item_name', '')
+        bill.old_item_purity = old_item_purity
+        bill.old_item_grams = old_item_grams
+        bill.old_item_rate = old_item_rate
+        bill.old_item_value = old_item_value
+        bill.discount = discount
+        bill.cgst = cgst; bill.sgst = sgst
+        bill.subtotal = round(total_subtotal, 2)
+        bill.total = total
+        bill.amount_paid = amount_paid
+        bill.balance = balance
+        bill.status = status
+        bill.item_type = item_types[0] if item_types else bill.item_type
+        bill.item_name = item_names[0] if item_names else bill.item_name
+        bill.purity = purities[0] if purities else bill.purity
+        bill.gross_weight = gross_weights[0] if gross_weights else bill.gross_weight
+        bill.stone_weight = stone_weights[0] if stone_weights else bill.stone_weight
+        bill.net_weight = bill_items[0].net_weight if bill_items else bill.net_weight
+        bill.grams = bill_items[0].grams if bill_items else bill.grams
+        bill.making_charge = making_charges[0] if making_charges else bill.making_charge
+        bill.making_charge_type = making_charge_types[0] if making_charge_types else bill.making_charge_type
+        bill.wastage_percent = wastage_percents[0] if wastage_percents else bill.wastage_percent
+        bill.item_rate = item_rates[0] if item_rates else bill.item_rate
+        bill.stone_charge = total_stone
+        bill.hallmark_charge = total_hallmark
+
+        for bi in bill_items:
+            bill.items.append(bi)
+
+        db.session.commit()
+        flash('Bill updated successfully!', 'success')
+        return redirect(url_for('view_bill', bill_id=bill.id))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating bill: {str(e)}', 'error')
+        return redirect(url_for('edit_bill', bill_id=bill_id))
+
+
 @app.route('/bills')
 def all_bills():
     """View all bills with search and filters"""
@@ -643,6 +791,35 @@ def delete_bill(bill_id):
     db.session.commit()
     flash('Bill deleted successfully! Inventory restored.', 'success')
     return redirect(url_for('all_bills'))
+
+
+@app.route('/update-payment/<int:bill_id>', methods=['POST'])
+def update_payment(bill_id):
+    """Record an additional payment against an existing bill"""
+    try:
+        bill = Bill.query.get_or_404(bill_id)
+        payment_amount = float(request.form.get('payment_amount', 0) or 0)
+        
+        if payment_amount > 0:
+            bill.amount_paid = round(bill.amount_paid + payment_amount, 2)
+            bill.balance = round(bill.total - bill.amount_paid, 2)
+            
+            if bill.balance <= 0:
+                bill.balance = 0
+                bill.status = 'Paid'
+            else:
+                bill.status = 'Partial'
+                
+            db.session.commit()
+            flash(f'Payment of Rs.{payment_amount:,.2f} recorded successfully!', 'success')
+        else:
+            flash('Invalid payment amount.', 'error')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error recording payment: {str(e)}', 'error')
+        
+    return redirect(url_for('view_bill', bill_id=bill.id))
 
 
 @app.route('/api/calculate', methods=['POST'])
@@ -702,6 +879,35 @@ def get_metal_prices():
     """API endpoint to fetch live metal prices (used by frontend AJAX)"""
     prices = fetch_live_metal_prices()
     return jsonify(prices)
+
+
+@app.route('/api/shorten-url', methods=['POST'])
+def shorten_url():
+    """API endpoint to generate a clean share URL hiding the vercel domain.
+    Uses CUSTOM_DOMAIN env var if set (e.g. lsjewels.in), otherwise falls back to TinyURL."""
+    data = request.json
+    url = data.get('url')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+    
+    # If a custom domain is configured, replace the origin with it
+    custom_domain = os.getenv('CUSTOM_DOMAIN', '').strip()
+    if custom_domain:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        # Rebuild URL with custom domain
+        scheme = 'https'
+        clean_url = f"{scheme}://{custom_domain}{parsed.path}"
+        return jsonify({'short_url': clean_url})
+    
+    # Fallback: use TinyURL to hide the vercel app domain
+    try:
+        response = requests.get(f"https://tinyurl.com/api-create.php?url={url}", timeout=5)
+        if response.status_code == 200 and response.text.startswith('http'):
+            return jsonify({'short_url': response.text})
+        return jsonify({'short_url': url})
+    except Exception as e:
+        return jsonify({'short_url': url})
 
 
 # ===== INVENTORY MANAGEMENT =====
@@ -883,9 +1089,22 @@ def generate_bill_pdf_bytes(bill):
     # Calculate dynamic height based on number of items to prevent overlap
     bill_items_list = bill.items if bill.items else [bill]
     item_count = len(bill_items_list)
-    base_height_mm = 150
+    base_height_mm = 155
     # Add roughly 8mm per item beyond the first 2
     extra_height_mm = max(0, (item_count - 2) * 8)
+    # Add extra height for additional totals rows (amount paid, balance due, discount, exchange)
+    extra_rows = 0
+    if bill.stone_charge:
+        extra_rows += 1
+    if bill.hallmark_charge:
+        extra_rows += 1
+    if bill.discount:
+        extra_rows += 1
+    if bill.old_item_value:
+        extra_rows += 1
+    if bill.amount_paid and bill.amount_paid != bill.total:
+        extra_rows += 2  # Amount Paid + Balance Due
+    extra_height_mm += extra_rows * 5
     page_w = 210 * mm
     page_h = (base_height_mm + extra_height_mm) * mm
     
@@ -996,21 +1215,21 @@ def generate_bill_pdf_bytes(bill):
             fmt_currency(irate), fmt_currency(iamt)
         ])
     
-    col_widths = [30*mm, 12*mm, 16*mm, 14*mm, 18*mm, 18*mm, 18*mm, 22*mm, 24*mm]
+    col_widths = [40*mm, 12*mm, 18*mm, 14*mm, 20*mm, 18*mm, 20*mm, 22*mm, 26*mm]
     items_tbl = Table(items_data, colWidths=col_widths)
     items_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#faf7f2')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.transparent),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#333333')),
         ('FONTNAME', (0, 0), (-1, 0), f_bold),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
         ('ALIGN', (1, 0), (3, -1), 'CENTER'),
         ('ALIGN', (4, 0), (-1, -1), 'RIGHT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#eeeeee')),
-        ('BOX', (0, 0), (-1, 0), 1.5, gold_color),
+        ('LINEABOVE', (0, 0), (-1, 0), 1.5, gold_color),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.5, gold_color),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(items_tbl)
     elements.append(Spacer(1, 4*mm))
@@ -1060,7 +1279,7 @@ def generate_bill_pdf_bytes(bill):
     # Build totals + payment/signature in a two-column layout
     payment_text = f'<b>Payment Mode:</b> {bill.payment_mode}<br/><b>Status:</b> {bill.status.upper()}'
     
-    totals_tbl = Table(totals_data, colWidths=[45*mm, 30*mm])
+    totals_tbl = Table(totals_data, colWidths=[52*mm, 28*mm])
     totals_style = [
         ('FONTNAME', (0, 0), (-1, -1), f_body),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
@@ -1076,10 +1295,10 @@ def generate_bill_pdf_bytes(bill):
     
     totals_style.append(('FONTNAME', (0, gt_idx), (-1, gt_idx), f_bold))
     totals_style.append(('FONTSIZE', (0, gt_idx), (-1, gt_idx), 10))
-    totals_style.append(('LINEABOVE', (0, gt_idx), (-1, gt_idx), 1, gold_color))
-    totals_style.append(('LINEBELOW', (0, gt_idx), (-1, gt_idx), 1, gold_color))
-    totals_style.append(('BOX', (0, gt_idx), (-1, gt_idx), 1, gold_color))
-    totals_style.append(('BACKGROUND', (0, gt_idx), (-1, gt_idx), colors.HexColor('#faf7f2')))
+    totals_style.append(('LINEABOVE', (0, gt_idx), (-1, gt_idx), 1.5, gold_color))
+    totals_style.append(('LINEBELOW', (0, gt_idx), (-1, gt_idx), 1.5, gold_color))
+    totals_style.append(('TOPPADDING', (0, gt_idx), (-1, gt_idx), 3))
+    totals_style.append(('BOTTOMPADDING', (0, gt_idx), (-1, gt_idx), 3))
     totals_tbl.setStyle(TableStyle(totals_style))
     
     # Combine payment info + totals/signature in two columns
@@ -1087,19 +1306,26 @@ def generate_bill_pdf_bytes(bill):
     
     sig_label_style = ParagraphStyle('SigLabel', parent=styles['Normal'],
                                      fontSize=6.5, textColor=colors.HexColor('#333333'),
-                                     alignment=TA_RIGHT, fontName=f_bold)
-    right_column_flowables.append(Spacer(1, 12*mm))
-    right_column_flowables.append(HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), hAlign='RIGHT', spaceAfter=1))
-    right_column_flowables.append(Paragraph('AUTHORIZED SIGNATURE', sig_label_style))
+                                     alignment=TA_CENTER, fontName=f_bold)
+    right_column_flowables.append(Spacer(1, 15*mm))
+    
+    sig_tbl = Table([
+        [HRFlowable(width=45*mm, thickness=0.8, color=colors.HexColor('#000000'), spaceAfter=1)],
+        [Paragraph('AUTHORIZED SIGNATURE', sig_label_style)]
+    ], colWidths=[45*mm], hAlign='RIGHT')
+    right_column_flowables.append(sig_tbl)
  
     bottom_data = [[
         Paragraph(payment_text, style_normal),
         right_column_flowables
     ]]
-    bottom_tbl = Table(bottom_data, colWidths=[95*mm, 80*mm])
+    bottom_tbl = Table(bottom_data, colWidths=[100*mm, 90*mm])
     bottom_tbl.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (0, 0), 'BOTTOM'),
+        ('VALIGN', (1, 0), (1, 0), 'TOP'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('LINELEFT', (1, 0), (1, 0), 1.5, gold_color),
+        ('LEFTPADDING', (1, 0), (1, 0), 10*mm),
     ]))
     elements.append(bottom_tbl)
     elements.append(Spacer(1, 2*mm))

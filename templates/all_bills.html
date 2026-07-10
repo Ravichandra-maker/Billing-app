@@ -184,14 +184,33 @@ function formatPhoneForWhatsApp(phone) {
   return digits;
 }
 
-function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
+async function shareViaWhatsApp(billId, billNumber, customerName, customerPhone, totalAmount) {
   closeAllDropdowns();
   
   const waPhone = formatPhoneForWhatsApp(customerPhone);
   const formattedTotal = parseFloat(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const pdfUrl = window.location.origin + '/bill/' + billId + '/pdf';
   
-  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${pdfUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
+  showToast('Generating secure link...');
+  
+  let finalUrl = pdfUrl;
+  try {
+      const response = await fetch('/api/shorten-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pdfUrl })
+      });
+      if (response.ok) {
+          const data = await response.json();
+          if (data.short_url) {
+              finalUrl = data.short_url;
+          }
+      }
+  } catch (e) {
+      console.error("URL shortening failed", e);
+  }
+  
+  const message = `Dear *${customerName}*,\n\nGreetings from *Laxmi Srinivasa Jewellery*!\n\nPlease find your Tax Invoice details below:\n\n\u{1F4C4} *Invoice No:* ${billNumber}\n\u{1F4B0} *Total Amount:* \u20B9${formattedTotal}\n\n\u{1F4E5} *Download Invoice PDF:*\n${finalUrl}\n\nThank you for choosing Laxmi Srinivasa Jewellery! We appreciate your trust and patronage.\n\n_\u2014 Laxmi Srinivasa Jewellery, Annavaram_`;
   
   const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
   window.open(waUrl, '_blank');
@@ -284,21 +303,40 @@ async function shareEmailServer(billId, customer, billNumber) {
   }
 }
 
-function copyBillLink(billId) {
-  const pdfUrl = getBillPdfUrl(billId);
-  navigator.clipboard.writeText(pdfUrl).then(() => {
-    showToast("Link copied to clipboard!");
-  }).catch(() => {
-    // Fallback for older browsers
-    const input = document.createElement('input');
-    input.value = pdfUrl;
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand('copy');
-    document.body.removeChild(input);
-    showToast("Link copied to clipboard!");
-  });
+async function copyBillLink(billId) {
   closeAllDropdowns();
+  const pdfUrl = getBillPdfUrl(billId);
+  showToast('Generating secure link...');
+  
+  let finalUrl = pdfUrl;
+  try {
+      const response = await fetch('/api/shorten-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pdfUrl })
+      });
+      if (response.ok) {
+          const data = await response.json();
+          if (data.short_url) {
+              finalUrl = data.short_url;
+          }
+      }
+  } catch (e) {
+      console.error("URL shortening failed", e);
+  }
+
+  try {
+      await navigator.clipboard.writeText(finalUrl);
+      showToast("Link copied to clipboard!");
+  } catch (err) {
+      const input = document.createElement('input');
+      input.value = finalUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      showToast("Link copied to clipboard!");
+  }
 }
 
 function closeAllDropdowns() {
