@@ -415,23 +415,10 @@
       <span class="material-symbols-outlined" style="font-size:18px;">table_view</span> Save as Excel
     </a>
 
-    <!-- Share Option -->
-    <div class="share-dropdown">
-      <button type="button" class="btn-action btn-share" onclick="toggleShareMenu()">
-        <span class="material-symbols-outlined" style="font-size:18px;">share</span> Share
-      </button>
-      <div class="share-menu" id="shareMenu">
-        <a href="https://api.whatsapp.com/send?text={{ whatsapp_share_text }}" target="_blank" class="share-item">
-          <span class="material-symbols-outlined" style="color:#25d366;">chat</span> WhatsApp
-        </a>
-        <div class="share-item" onclick="copyReportLink()">
-          <span class="material-symbols-outlined" style="color:#007bff;">link</span> Copy Report Link
-        </div>
-        <div class="share-item" onclick="triggerNativeShare()">
-          <span class="material-symbols-outlined" style="color:var(--primary);">devices</span> Device Share (Native)
-        </div>
-      </div>
-    </div>
+    <!-- Share Option: WhatsApp Direct -->
+    <a href="https://api.whatsapp.com/send?text={{ whatsapp_share_text }}" target="_blank" class="btn-action btn-share" title="Share Summary via WhatsApp">
+      <span class="material-symbols-outlined" style="font-size:18px;">chat</span> Share on WhatsApp
+    </a>
   </div>
 </div>
 
@@ -675,48 +662,12 @@
     document.getElementById('reportFilterForm').submit();
   }
 
-  function toggleShareMenu() {
-    const menu = document.getElementById('shareMenu');
-    menu.classList.toggle('show');
-  }
-
-  document.addEventListener('click', function(e) {
-    const dropdown = document.querySelector('.share-dropdown');
-    if (dropdown && !dropdown.contains(e.target)) {
-      const menu = document.getElementById('shareMenu');
-      if (menu) menu.classList.remove('show');
-    }
+  // When user picks a custom date manually, mark timeline as custom so preset does not override
+  document.getElementById('input_from_date').addEventListener('change', function() {
+    document.getElementById('input_timeline').value = 'custom';
   });
-
-  function copyReportLink() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      showToast('Report URL copied to clipboard!');
-      const menu = document.getElementById('shareMenu');
-      if (menu) menu.classList.remove('show');
-    }).catch(err => {
-      showToast('Error copying link.');
-    });
-  }
-
-  function showToast(msg) {
-    const toast = document.getElementById('copyToast');
-    toast.innerHTML = `<span class="material-symbols-outlined" style="color:#28a745;font-size:18px;">check_circle</span> ${msg}`;
-    toast.style.display = 'flex';
-    setTimeout(() => {
-      toast.style.display = 'none';
-    }, 2800);
-  }
-
-  function triggerNativeShare() {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Laxmi Srinivasa Jewellery - Sales Report',
-        text: 'Sales Report for Laxmi Srinivasa Jewellery',
-        url: window.location.href,
-      }).catch(err => console.log('Share dismissed'));
-    } else {
-      copyReportLink();
-    }
-  }
+  document.getElementById('input_to_date').addEventListener('change', function() {
+    document.getElementById('input_timeline').value = 'custom';
+  });
 </script>
 {% endblock %}

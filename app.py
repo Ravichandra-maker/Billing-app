@@ -800,52 +800,56 @@ def parse_bill_date(bill):
 
 
 def get_timeline_dates(timeline=None, from_date_str=None, to_date_str=None):
-    """Calculate date boundaries based on timeline presets or custom input"""
+    """Calculate date boundaries based on custom input or timeline presets"""
     today = datetime.today().date()
     
-    if timeline == 'today':
-        start_date = today
-        end_date = today
-    elif timeline == 'monthly':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif timeline == 'last_month':
-        first_this_month = today.replace(day=1)
-        last_prev_month = first_this_month - timedelta(days=1)
-        start_date = last_prev_month.replace(day=1)
-        end_date = last_prev_month
-    elif timeline == 'yearly':
-        # Indian Financial Year: April 1 to March 31
-        if today.month >= 4:
-            start_date = date(today.year, 4, 1)
-            end_date = date(today.year + 1, 3, 31)
-        else:
-            start_date = date(today.year - 1, 4, 1)
-            end_date = date(today.year, 3, 31)
-    elif timeline == 'calendar_year':
-        start_date = date(today.year, 1, 1)
-        end_date = date(today.year, 12, 31)
-    elif from_date_str and to_date_str:
-        timeline = 'custom'
+    # Preset calculations
+    preset_dates = {
+        'today': (today, today),
+        'monthly': (today.replace(day=1), today),
+        'last_month': (
+            (today.replace(day=1) - timedelta(days=1)).replace(day=1),
+            today.replace(day=1) - timedelta(days=1)
+        ),
+        'yearly': (
+            date(today.year if today.month >= 4 else today.year - 1, 4, 1),
+            date(today.year + 1 if today.month >= 4 else today.year, 3, 31)
+        ),
+        'calendar_year': (
+            date(today.year, 1, 1),
+            date(today.year, 12, 31)
+        )
+    }
+
+    # If the user changed the from_date or to_date away from the preset values, treat as custom
+    if from_date_str and to_date_str:
         try:
-            start_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
-        except Exception:
-            start_date = today.replace(day=1)
-        try:
-            end_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
-        except Exception:
-            end_date = today
-    else:
-        # Default to Financial Year (matches reference PDF: 01/04/2026 to 31/03/2027)
-        timeline = 'yearly'
-        if today.month >= 4:
-            start_date = date(today.year, 4, 1)
-            end_date = date(today.year + 1, 3, 31)
-        else:
-            start_date = date(today.year - 1, 4, 1)
-            end_date = date(today.year, 3, 31)
+            custom_start = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+            custom_end = datetime.strptime(to_date_str, '%Y-%m-%d').date()
             
-    return timeline, start_date, end_date
+            # If timeline is empty or custom, or dates differ from the preset's expected dates
+            if not timeline or timeline == 'custom':
+                return 'custom', custom_start, custom_end
+            
+            if timeline in preset_dates:
+                p_start, p_end = preset_dates[timeline]
+                if custom_start != p_start or custom_end != p_end:
+                    # User picked custom dates while having a preset selected
+                    return 'custom', custom_start, custom_end
+                else:
+                    return timeline, p_start, p_end
+            else:
+                return 'custom', custom_start, custom_end
+        except Exception:
+            pass
+
+    if timeline in preset_dates:
+        p_start, p_end = preset_dates[timeline]
+        return timeline, p_start, p_end
+
+    # Default to Financial Year (matches reference PDF: 01/04/2026 to 31/03/2027)
+    p_start, p_end = preset_dates['yearly']
+    return 'yearly', p_start, p_end
 
 
 def generate_sales_report_pdf_bytes(bills, from_date_str, to_date_str, username="All Users"):
