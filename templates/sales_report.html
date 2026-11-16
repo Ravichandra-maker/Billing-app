@@ -381,13 +381,7 @@
         </div>
         <div class="form-group" style="flex:1;min-width:200px;">
           <label class="form-label">Search Party / Bill</label>
-          <input type="text" name="search" class="form-control" placeholder="Customer name, phone or bill no..." value="{{ search }}">
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;">
-          <button type="submit" class="btn btn-primary" style="height:42px;">
-            <span class="material-symbols-outlined">filter_alt</span> Apply
-          </button>
-          <a href="/sales-report" class="btn btn-sm" style="height:42px;display:flex;align-items:center;">Clear</a>
+          <input type="text" name="search" id="input_search" class="form-control" placeholder="Customer name, phone or bill no..." value="{{ search }}" autocomplete="off">
         </div>
       </div>
     </form>
@@ -662,12 +656,41 @@
     document.getElementById('reportFilterForm').submit();
   }
 
-  // When user picks a custom date manually, mark timeline as custom so preset does not override
-  document.getElementById('input_from_date').addEventListener('change', function() {
+  // Automatically filter whenever dates or dropdowns change
+  function autoSubmitFilter() {
     document.getElementById('input_timeline').value = 'custom';
-  });
-  document.getElementById('input_to_date').addEventListener('change', function() {
-    document.getElementById('input_timeline').value = 'custom';
-  });
+    document.getElementById('reportFilterForm').submit();
+  }
+
+  document.getElementById('input_from_date').addEventListener('change', autoSubmitFilter);
+  document.getElementById('input_to_date').addEventListener('change', autoSubmitFilter);
+
+  // Auto-filter on Status and Payment Mode changes
+  const statusSelect = document.querySelector('select[name="status"]');
+  if (statusSelect) statusSelect.addEventListener('change', autoSubmitFilter);
+
+  const paymentSelect = document.querySelector('select[name="payment_mode"]');
+  if (paymentSelect) paymentSelect.addEventListener('change', autoSubmitFilter);
+
+  // Live debounced search as user types party name / bill number
+  let searchTimeout = null;
+  const searchInput = document.getElementById('input_search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        document.getElementById('input_timeline').value = 'custom';
+        document.getElementById('reportFilterForm').submit();
+      }, 500); // 500ms debounce
+    });
+
+    // Auto-focus search input and place cursor at end if it had a value
+    if (searchInput.value) {
+      searchInput.focus();
+      const val = searchInput.value;
+      searchInput.value = '';
+      searchInput.value = val;
+    }
+  }
 </script>
 {% endblock %}
