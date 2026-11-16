@@ -53,9 +53,14 @@
   <div style="padding:32px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h3 class="headline-md">{{ bills|length }} Bill{{ 's' if bills|length != 1 }} Found</h3>
-      <a href="/new-bill" class="btn btn-primary">
-        <span class="material-symbols-outlined">add</span> New Invoice
-      </a>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <a href="/sales-report" class="btn" style="border:1px solid var(--border);background:var(--surface);display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-weight:600;">
+          <span class="material-symbols-outlined">analytics</span> Sales Report
+        </a>
+        <a href="/new-bill" class="btn btn-primary">
+          <span class="material-symbols-outlined">add</span> New Invoice
+        </a>
+      </div>
     </div>
 
     {% if bills %}

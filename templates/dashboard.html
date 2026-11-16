@@ -5,9 +5,19 @@
 
 {% block content %}
 <!-- Hero -->
-<section style="margin-bottom:48px;">
-  <h2 class="headline-lg">Welcome to <span class="serif-italic">Laxmi Srinivasa</span></h2>
-  <p class="body-md text-secondary" style="margin-top:8px;">Heritage Jewellery Management & Financial Ledger</p>
+<section style="margin-bottom:32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+  <div>
+    <h2 class="headline-lg">Welcome to <span class="serif-italic">Laxmi Srinivasa</span></h2>
+    <p class="body-md text-secondary" style="margin-top:4px;">Heritage Jewellery Management & Financial Ledger</p>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <a href="/sales-report" class="btn" style="background:var(--surface-card);border:1px solid var(--border);display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-weight:600;">
+      <span class="material-symbols-outlined">analytics</span> Sales Report
+    </a>
+    <a href="/new-bill" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-weight:600;">
+      <span class="material-symbols-outlined">add</span> Create Bill
+    </a>
+  </div>
 </section>
 
 <!-- Live Metal Prices -->

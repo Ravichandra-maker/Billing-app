@@ -1,0 +1,722 @@
+{% extends "base.html" %}
+{% set active_page = 'sales_report' %}
+{% block title %}Sales Report - Laxmi Srinivasa Jewellery{% endblock %}
+{% block topbar_title %}Sales Report{% endblock %}
+
+{% block content %}
+<style>
+  /* Sales Report Specific Styles */
+  .timeline-pill {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--secondary);
+    transition: var(--transition);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .timeline-pill:hover, .timeline-pill.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
+  .actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+    background: var(--surface-card);
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--primary);
+    transition: var(--transition);
+  }
+  .btn-action:hover {
+    background: var(--surface-hover);
+    border-color: var(--accent);
+  }
+  .btn-action.btn-pdf {
+    background: #c0392b;
+    color: #fff;
+    border-color: #a93226;
+  }
+  .btn-action.btn-pdf:hover {
+    background: #a93226;
+  }
+  .btn-action.btn-excel {
+    background: #1e7e34;
+    color: #fff;
+    border-color: #19692c;
+  }
+  .btn-action.btn-excel:hover {
+    background: #19692c;
+  }
+  .btn-action.btn-share {
+    background: #25d366;
+    color: #fff;
+    border-color: #20ba5a;
+  }
+  .btn-action.btn-share:hover {
+    background: #20ba5a;
+  }
+
+  /* Report Document Container (Paper Preview) */
+  .report-paper {
+    background: #ffffff;
+    max-width: 960px;
+    margin: 0 auto 40px auto;
+    padding: 32px 36px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #dcdcdc;
+    border-radius: 4px;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .report-header-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1.5px solid #222;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .report-logo {
+    height: 52px;
+    width: auto;
+    object-fit: contain;
+  }
+  .report-store-info {
+    text-align: right;
+  }
+  .report-store-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 2px;
+  }
+  .report-store-sub {
+    font-size: 10px;
+    color: #333;
+    line-height: 1.35;
+  }
+
+  .report-title-center {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: underline;
+    margin: 8px 0 6px 0;
+    letter-spacing: 0.02em;
+  }
+
+  .report-meta-info {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+
+  /* Sales Tables */
+  .sale-block {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+  }
+
+  .sale-meta-tbl, .sale-items-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .sale-meta-tbl th {
+    background: #d9d9d9;
+    color: #000;
+    font-weight: 700;
+    padding: 5px 3px;
+    border: 1px solid #c8c8c8;
+    text-align: center;
+    vertical-align: middle;
+  }
+  .sale-meta-tbl td {
+    padding: 6px 3px;
+    border: 1px solid #c8c8c8;
+    vertical-align: middle;
+    background: #fff;
+  }
+
+  .sale-items-tbl {
+    margin-top: 4px;
+  }
+  .sale-items-tbl th {
+    background: #e5e5e5;
+    color: #000;
+    font-weight: 700;
+    padding: 5px 4px;
+    border-top: 1px solid #999;
+    border-bottom: 1px solid #999;
+  }
+  .sale-items-tbl td {
+    padding: 5px 4px;
+    border-bottom: 1px dashed #e2e2e2;
+  }
+  .sale-items-tbl .item-total-row td {
+    font-weight: 700;
+    border-top: 1px solid #777;
+    border-bottom: 1px solid #777;
+    background: #fbfbfb;
+  }
+
+  .sale-subtotal-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 20px;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    margin-top: 4px;
+    background: #fff;
+  }
+
+  .sale-divider {
+    border: 0;
+    border-bottom: 1.5px solid #d0d0d0;
+    margin: 16px 0;
+  }
+
+  .report-grand-total {
+    text-align: right;
+    font-size: 15px;
+    font-weight: 800;
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 2px solid #222;
+  }
+
+  .report-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #777;
+    margin-top: 30px;
+    border-top: 1px solid #eee;
+    padding-top: 8px;
+  }
+
+  /* Share dropdown / modal */
+  .share-dropdown {
+    position: relative;
+    display: inline-block;
+  }
+  .share-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 6px;
+    background: #fff;
+    min-width: 220px;
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    z-index: 100;
+    padding: 8px 0;
+  }
+  .share-menu.show {
+    display: block;
+  }
+  .share-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    text-decoration: none;
+  }
+  .share-item:hover {
+    background: var(--surface-hover);
+  }
+
+  /* PRINT STYLES */
+  @media print {
+    body {
+      background: #fff !important;
+      color: #000 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .sidebar, .topbar, .filter-card, .actions-bar, .metrics-grid, .nav-item, .no-print {
+      display: none !important;
+    }
+    .main-content {
+      margin: 0 !important;
+      padding: 0 !important;
+      max-width: 100% !important;
+    }
+    .page-content {
+      padding: 0 !important;
+    }
+    .report-paper {
+      box-shadow: none !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: 100% !important;
+    }
+    /* Enforce 4 sales per page print break */
+    .print-page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
+  }
+</style>
+
+<!-- Page Header -->
+<section style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;">
+  <div>
+    <h2 class="headline-lg">Periodic Sales Report</h2>
+    <p class="body-md text-secondary" style="margin-top:4px;">Generate, export, print, and share GST sales reports</p>
+  </div>
+  <div style="font-size:13px;background:var(--surface-card);padding:6px 14px;border-radius:20px;border:1px solid var(--border);font-weight:600;">
+    <span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;color:var(--accent);">calendar_today</span>
+    Duration: {{ from_date_formatted }} to {{ to_date_formatted }}
+  </div>
+</section>
+
+<!-- Filter & Timeline Card -->
+<div class="card filter-card" style="margin-bottom:24px;">
+  <div style="padding:24px;">
+    <!-- Timeline Presets -->
+    <div style="margin-bottom:18px;">
+      <label class="label" style="display:block;margin-bottom:8px;">Timeline Presets</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button type="button" class="timeline-pill {% if timeline == 'today' %}active{% endif %}" onclick="selectTimeline('today')">
+          <span class="material-symbols-outlined" style="font-size:14px;">today</span> Today
+        </button>
+        <button type="button" class="timeline-pill {% if timeline == 'monthly' %}active{% endif %}" onclick="selectTimeline('monthly')">
+          <span class="material-symbols-outlined" style="font-size:14px;">calendar_month</span> This Month
+        </button>
+        <button type="button" class="timeline-pill {% if timeline == 'last_month' %}active{% endif %}" onclick="selectTimeline('last_month')">
+          <span class="material-symbols-outlined" style="font-size:14px;">history</span> Last Month
+        </button>
+        <button type="button" class="timeline-pill {% if timeline == 'yearly' %}active{% endif %}" onclick="selectTimeline('yearly')">
+          <span class="material-symbols-outlined" style="font-size:14px;">date_range</span> Financial Year (Apr - Mar)
+        </button>
+        <button type="button" class="timeline-pill {% if timeline == 'calendar_year' %}active{% endif %}" onclick="selectTimeline('calendar_year')">
+          <span class="material-symbols-outlined" style="font-size:14px;">calendar_today</span> Calendar Year
+        </button>
+        <button type="button" class="timeline-pill {% if timeline == 'custom' %}active{% endif %}" onclick="selectTimeline('custom')">
+          <span class="material-symbols-outlined" style="font-size:14px;">tune</span> Custom Dates
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="/sales-report" id="reportFilterForm">
+      <input type="hidden" name="timeline" id="input_timeline" value="{{ timeline }}">
+      <div class="filter-bar" style="margin-bottom:0;">
+        <div class="form-group" style="min-width:160px;">
+          <label class="form-label">From Date</label>
+          <input type="date" name="from_date" id="input_from_date" class="form-control" value="{{ from_date_val }}" required>
+        </div>
+        <div class="form-group" style="min-width:160px;">
+          <label class="form-label">To Date</label>
+          <input type="date" name="to_date" id="input_to_date" class="form-control" value="{{ to_date_val }}" required>
+        </div>
+        <div class="form-group" style="min-width:140px;">
+          <label class="form-label">Status</label>
+          <select name="status" class="form-control">
+            <option value="">All Statuses</option>
+            <option value="Paid" {% if status_filter == 'Paid' %}selected{% endif %}>Paid</option>
+            <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Partial" {% if status_filter == 'Partial' %}selected{% endif %}>Partial</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width:140px;">
+          <label class="form-label">Payment Mode</label>
+          <select name="payment_mode" class="form-control">
+            <option value="">All Payment Modes</option>
+            <option value="Cash" {% if payment_filter == 'Cash' %}selected{% endif %}>Cash</option>
+            <option value="State Bank Of India" {% if payment_filter == 'State Bank Of India' %}selected{% endif %}>State Bank Of India</option>
+            <option value="UPI" {% if payment_filter == 'UPI' %}selected{% endif %}>UPI</option>
+            <option value="Card" {% if payment_filter == 'Card' %}selected{% endif %}>Card</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:200px;">
+          <label class="form-label">Search Party / Bill</label>
+          <input type="text" name="search" class="form-control" placeholder="Customer name, phone or bill no..." value="{{ search }}">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <button type="submit" class="btn btn-primary" style="height:42px;">
+            <span class="material-symbols-outlined">filter_alt</span> Apply
+          </button>
+          <a href="/sales-report" class="btn btn-sm" style="height:42px;display:flex;align-items:center;">Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Actions Toolbar -->
+<div class="actions-bar no-print">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="material-symbols-outlined" style="color:var(--accent);">summarize</span>
+    <span style="font-weight:700;font-size:15px;">{{ bills|length }} Sale{{ 's' if bills|length != 1 }} Recorded</span>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <!-- Print Option -->
+    <button type="button" class="btn-action" onclick="window.print()">
+      <span class="material-symbols-outlined" style="font-size:18px;">print</span> Print Report
+    </button>
+
+    <!-- Save Options: PDF & Excel -->
+    <a href="/sales-report/pdf?{{ query_string }}" class="btn-action btn-pdf" target="_blank" title="Download Official PDF Report">
+      <span class="material-symbols-outlined" style="font-size:18px;">picture_as_pdf</span> Save as PDF
+    </a>
+    <a href="/sales-report/excel?{{ query_string }}" class="btn-action btn-excel" title="Download Excel Spreadsheet">
+      <span class="material-symbols-outlined" style="font-size:18px;">table_view</span> Save as Excel
+    </a>
+
+    <!-- Share Option -->
+    <div class="share-dropdown">
+      <button type="button" class="btn-action btn-share" onclick="toggleShareMenu()">
+        <span class="material-symbols-outlined" style="font-size:18px;">share</span> Share
+      </button>
+      <div class="share-menu" id="shareMenu">
+        <a href="https://api.whatsapp.com/send?text={{ whatsapp_share_text }}" target="_blank" class="share-item">
+          <span class="material-symbols-outlined" style="color:#25d366;">chat</span> WhatsApp
+        </a>
+        <div class="share-item" onclick="copyReportLink()">
+          <span class="material-symbols-outlined" style="color:#007bff;">link</span> Copy Report Link
+        </div>
+        <div class="share-item" onclick="triggerNativeShare()">
+          <span class="material-symbols-outlined" style="color:var(--primary);">devices</span> Device Share (Native)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Summary Metrics -->
+<div class="metrics-grid no-print" style="margin-bottom:32px;">
+  <div class="metric-card">
+    <span class="metric-label">Total Sales Revenue</span>
+    <div class="metric-value">₹{{ "{:,.0f}".format(total_sales_amount) }}</div>
+    <div class="metric-footer">
+      <span>{{ bills|length }} Bills</span>
+      <span class="material-symbols-outlined">payments</span>
+    </div>
+  </div>
+  <div class="metric-card inverted">
+    <span class="metric-label">Total Received</span>
+    <div class="metric-value">₹{{ "{:,.0f}".format(total_paid_amount) }}</div>
+    <div class="metric-footer">
+      <span>Cash & Digital</span>
+      <span class="material-symbols-outlined">check_circle</span>
+    </div>
+  </div>
+  <div class="metric-card">
+    <span class="metric-label">Balance Outstanding</span>
+    <div class="metric-value {% if total_balance_amount > 0 %}text-error{% endif %}">₹{{ "{:,.0f}".format(total_balance_amount) }}</div>
+    <div class="metric-footer">
+      <span>Pending receivables</span>
+      <span class="material-symbols-outlined">pending</span>
+    </div>
+  </div>
+  <div class="metric-card">
+    <span class="metric-label">Total Weight Sold</span>
+    <div class="metric-value">{{ "{:,.2f}".format(total_grams) }} Gm</div>
+    <div class="metric-footer">
+      <span>Gold & Silver</span>
+      <span class="material-symbols-outlined">scale</span>
+    </div>
+  </div>
+</div>
+
+<!-- Exact Reference Report Document (WYSIWYG 3-per-page) -->
+<div class="report-paper" id="reportPrintArea">
+  <!-- Store Header (Compact) -->
+  <div class="report-header-grid">
+    <div>
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="report-logo">
+    </div>
+    <div class="report-store-info">
+      <div class="report-store-name">Laxmi Srinivasa Jewellery</div>
+      <div class="report-store-sub">
+        GROUND 6-162 Annavaram Main Road Annavaram<br>
+        Phone no.: 9951050648 &nbsp;|&nbsp; GSTIN: 37CKJPK2161B1ZG, State: 37-Andhra Pradesh
+      </div>
+    </div>
+  </div>
+
+  <div class="report-title-center">Sale Report</div>
+
+  <div class="report-meta-info" style="display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:8px;">
+    <div><strong>Username:</strong> {{ username or 'LSJ Admin' }}</div>
+    <div><strong>Duration:</strong> From {{ from_date_formatted }} to {{ to_date_formatted }}</div>
+  </div>
+
+  <!-- Sales Listing -->
+  {% if bills %}
+    {% for bill in bills %}
+      <div class="sale-block">
+        <!-- 1. Sale Meta Table -->
+        <table class="sale-meta-tbl">
+          <thead>
+            <tr>
+              <th style="width:8%;">Date</th>
+              <th style="width:7%;">Order<br>No.</th>
+              <th style="width:5%;">Ref<br>No.</th>
+              <th style="width:14%;text-align:left;">Party Name</th>
+              <th style="width:10%;">Phone<br>No</th>
+              <th style="width:9%;">Party's<br>GSTIN No.</th>
+              <th style="width:6%;">Txn<br>Type</th>
+              <th style="width:8%;">Due<br>Date.</th>
+              <th style="width:6%;">Status</th>
+              <th style="width:9%;text-align:right;">Total<br>Amount</th>
+              <th style="width:9%;">Payment<br>Type</th>
+              <th style="width:9%;text-align:right;">Received/<br>Paid Amount</th>
+              <th style="width:8%;text-align:right;">Balance<br>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="text-align:center;">{{ bill.date or bill.created_at.strftime('%d/%m/%Y') }}</td>
+              <td style="text-align:center;font-weight:600;">{{ bill.bill_number or bill.id }}</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:left;font-weight:600;">{{ bill.customer_name or '-' }}</td>
+              <td style="text-align:center;">{{ bill.phone or '-' }}</td>
+              <td style="text-align:center;">{{ bill.gst_number or '-' }}</td>
+              <td style="text-align:center;">Sale</td>
+              <td style="text-align:center;">{{ bill.date or bill.created_at.strftime('%d/%m/%Y') }}</td>
+              <td style="text-align:center;font-weight:600;">{{ bill.status or 'Paid' }}</td>
+              <td style="text-align:right;font-weight:600;">Rs {{ "{:,.0f}".format(bill.total or 0) }}</td>
+              <td style="text-align:center;">{{ bill.payment_mode or 'Cash' }}</td>
+              <td style="text-align:right;">Rs {{ "{:,.0f}".format(bill.amount_paid or bill.total or 0) }}</td>
+              <td style="text-align:right;">Rs {{ "{:,.0f}".format(bill.balance or 0) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- 2. Item Breakdown Table -->
+        <table class="sale-items-tbl">
+          <thead>
+            <tr>
+              <th style="width:4%;text-align:center;">#</th>
+              <th style="width:26%;text-align:left;">Item name</th>
+              <th style="width:8%;text-align:center;">HSN/SAC</th>
+              <th style="width:8%;text-align:center;">Quantity</th>
+              <th style="width:7%;text-align:center;">Grams</th>
+              <th style="width:12%;text-align:right;">Price/unit</th>
+              <th style="width:13%;text-align:right;">GST</th>
+              <th style="width:9%;text-align:right;">Ad. CESS</th>
+              <th style="width:13%;text-align:right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set bill_items = bill.items if bill.items else [bill] %}
+            {% set ns = namespace(tot_qty=0, tot_gst=((bill.cgst or 0) + (bill.sgst or 0)), tot_cess=(bill.making_charge or 0)) %}
+            {% for item in bill_items %}
+              {% set item_grams = item.grams or bill.grams or 0 %}
+              {% set item_rate = item.item_rate or bill.item_rate or 0 %}
+              {% set item_amt = item.item_amount or (item_grams * item_rate) or bill.total or 0 %}
+              {% set item_gst = (ns.tot_gst / bill_items|length) if ns.tot_gst else (item_amt * 0.03) %}
+              {% set item_cess = (ns.tot_cess / bill_items|length) if ns.tot_cess else 0 %}
+              {% set ns.tot_qty = ns.tot_qty + (item_grams if item_grams > 0 else 1) %}
+              <tr>
+                <td style="text-align:center;">{{ loop.index }}</td>
+                <td style="text-align:left;font-weight:500;">{{ item.item_name or bill.item_name or 'Jewellery Item' }}</td>
+                <td style="text-align:center;">-</td>
+                <td style="text-align:center;">{{ "{:.1f}".format(item_grams) if item_grams > 0 else "1" }}</td>
+                <td style="text-align:center;">{{ "Gm" if item_grams > 0 else "" }}</td>
+                <td style="text-align:right;">{{ "Rs {:,.1f}".format(item_rate) if item_rate > 0 else "-" }}</td>
+                <td style="text-align:right;">Rs {{ "{:,.1f}".format(item_gst) }}<br><span style="font-size:9px;color:#555;">(3.0%)</span></td>
+                <td style="text-align:right;">{{ "Rs {:,.0f}".format(item_cess) if item_cess > 0 else "Rs 0" }}</td>
+                <td style="text-align:right;font-weight:600;">Rs {{ "{:,.0f}".format(item_amt) }}</td>
+              </tr>
+            {% endfor %}
+            <!-- Total Row -->
+            <tr class="item-total-row">
+              <td colspan="2" style="text-align:left;padding-left:14px;">Total</td>
+              <td></td>
+              <td style="text-align:center;">{{ "{:.1f}".format(ns.tot_qty) }}</td>
+              <td></td>
+              <td></td>
+              <td style="text-align:right;">Rs {{ "{:,.1f}".format(ns.tot_gst) if ns.tot_gst else "Rs 0" }}</td>
+              <td style="text-align:right;">Rs {{ "{:,.0f}".format(ns.tot_cess) if ns.tot_cess else "Rs 0" }}</td>
+              <td style="text-align:right;">Rs {{ "{:,.0f}".format(bill.total or 0) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Sub Total Row -->
+        <div class="sale-subtotal-row">
+          <span>Sub Total:</span>
+          <span>Rs {{ "{:,.0f}".format(bill.subtotal or bill.total or 0) }}</span>
+        </div>
+      </div>
+      <hr class="sale-divider">
+
+      <!-- Page break after every 3 sales for print -->
+      {% if loop.index % 3 == 0 and not loop.last %}
+        <div class="print-page-break"></div>
+      {% endif %}
+    {% endfor %}
+
+    <!-- Grand Total -->
+    <div class="report-grand-total">
+      Total Sale: Rs {{ "{:,.0f}".format(total_sales_amount) }}
+    </div>
+  {% else %}
+    <div style="text-align:center;padding:48px 16px;color:#777;">
+      <span class="material-symbols-outlined" style="font-size:48px;opacity:0.4;">receipt_long</span>
+      <p style="margin-top:12px;font-size:14px;font-weight:600;">No sales transactions found in this period.</p>
+      <p style="font-size:12px;">Try adjusting your date range or preset filters above.</p>
+    </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <div class="report-footer">
+    <div>Laxmi Srinivasa Jewellery | Sale Report ({{ from_date_formatted }} to {{ to_date_formatted }}) | Generated on {{ now_formatted }}</div>
+    <div>Page 1</div>
+  </div>
+</div>
+
+<!-- Toast notification for copy link -->
+<div id="copyToast" style="position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:none;z-index:999;align-items:center;gap:8px;">
+  <span class="material-symbols-outlined" style="color:#28a745;font-size:18px;">check_circle</span> Link copied to clipboard!
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function selectTimeline(type) {
+    const today = new Date();
+    let fromDate, toDate;
+
+    function formatDate(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (type === 'today') {
+      fromDate = formatDate(today);
+      toDate = formatDate(today);
+    } else if (type === 'monthly') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      fromDate = formatDate(firstDay);
+      toDate = formatDate(today);
+    } else if (type === 'last_month') {
+      const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      fromDate = formatDate(firstDayLastMonth);
+      toDate = formatDate(lastDayLastMonth);
+    } else if (type === 'yearly') {
+      // Indian Financial Year: April 1 to March 31
+      let startYear = today.getFullYear();
+      if (today.getMonth() < 3) { // Jan, Feb, Mar belong to previous FY
+        startYear -= 1;
+      }
+      fromDate = `${startYear}-04-01`;
+      toDate = `${startYear + 1}-03-31`;
+    } else if (type === 'calendar_year') {
+      fromDate = `${today.getFullYear()}-01-01`;
+      toDate = `${today.getFullYear()}-12-31`;
+    } else if (type === 'custom') {
+      document.getElementById('input_timeline').value = 'custom';
+      document.getElementById('input_from_date').focus();
+      return;
+    }
+
+    document.getElementById('input_timeline').value = type;
+    document.getElementById('input_from_date').value = fromDate;
+    document.getElementById('input_to_date').value = toDate;
+    document.getElementById('reportFilterForm').submit();
+  }
+
+  function toggleShareMenu() {
+    const menu = document.getElementById('shareMenu');
+    menu.classList.toggle('show');
+  }
+
+  document.addEventListener('click', function(e) {
+    const dropdown = document.querySelector('.share-dropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+      const menu = document.getElementById('shareMenu');
+      if (menu) menu.classList.remove('show');
+    }
+  });
+
+  function copyReportLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      showToast('Report URL copied to clipboard!');
+      const menu = document.getElementById('shareMenu');
+      if (menu) menu.classList.remove('show');
+    }).catch(err => {
+      showToast('Error copying link.');
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('copyToast');
+    toast.innerHTML = `<span class="material-symbols-outlined" style="color:#28a745;font-size:18px;">check_circle</span> ${msg}`;
+    toast.style.display = 'flex';
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 2800);
+  }
+
+  function triggerNativeShare() {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Laxmi Srinivasa Jewellery - Sales Report',
+        text: 'Sales Report for Laxmi Srinivasa Jewellery',
+        url: window.location.href,
+      }).catch(err => console.log('Share dismissed'));
+    } else {
+      copyReportLink();
+    }
+  }
+</script>
+{% endblock %}
